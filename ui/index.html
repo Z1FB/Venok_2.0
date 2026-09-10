@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Venok</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #050814;
+    --panel-bg: rgba(8, 14, 28, 0.92);
+    --core-1: #d6f3ff;
+    --core-2: #4fc3f7;
+    --core-3: #1a6fb8;
+    --ring-orange: #ff7a1a;
+    --ring-blue: #4fc3f7;
+    --text-primary: #eaf2ff;
+    --text-secondary: #7a8bb0;
+    --accent: #4fc3f7;
+    --accent-rgb: 79, 195, 247;
+    --error: #ff4d5e;
+    --procesando: #b06bff;
+    --hablando: #ff9d3d;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at 60% 40%, #0a1530 0%, var(--bg) 70%);
+    color: var(--text-primary);
+    font-family: 'Rajdhani', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+  }
+
+  /* ---------------- BARRA SUPERIOR ---------------- */
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid rgba(var(--accent-rgb), 0.15);
+    flex-shrink: 0;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-marca {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #1a6fb8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    color: #05131f;
+  }
+  .logo-texto .titulo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+  }
+  .logo-texto .subtitulo {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--text-secondary);
+  }
+  .nav-links {
+    display: flex;
+    gap: 10px;
+  }
+  .nav-links button {
+    background: transparent;
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    color: var(--text-primary);
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 8px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    text-transform: uppercase;
+  }
+  .nav-links button.activo {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: var(--accent);
+  }
+  .nav-links button:hover { background: rgba(var(--accent-rgb), 0.12); }
+
+  .estado-conexion {
+    text-align: right;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+  }
+  .estado-conexion .punto {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #35e07a;
+    margin-right: 6px;
+    box-shadow: 0 0 8px #35e07a;
+  }
+  .estado-conexion .linea1 { color: #35e07a; font-weight: 700; letter-spacing: 2px; }
+
+  /* ---------------- CUERPO ---------------- */
+  .cuerpo {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ---------------- PANEL DE CHAT ---------------- */
+  .panel-chat {
+    width: 360px;
+    flex-shrink: 0;
+    background: var(--panel-bg);
+    border-right: 1px solid rgba(var(--accent-rgb), 0.15);
+    display: flex;
+    flex-direction: column;
+    transition: margin-left 0.3s ease;
+  }
+  .panel-chat.oculto { margin-left: -360px; }
+
+  /* ---------------- PANEL DE ACTIVIDAD RECIENTE ---------------- */
+  .panel-actividad {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--panel-bg);
+    border-left: 1px solid rgba(var(--accent-rgb), 0.15);
+    display: flex;
+    flex-direction: column;
+    transition: margin-right 0.3s ease;
+  }
+  .panel-actividad.oculto { margin-right: -300px; }
+
+  .actividad-lista {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .actividad-lista::-webkit-scrollbar { width: 5px; }
+  .actividad-lista::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb),0.2); border-radius: 4px; }
+
+  .actividad-vacia {
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 14px;
+    text-align: center;
+  }
+
+  .actividad-item {
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgba(var(--accent-rgb), 0.05);
+    border: 1px solid rgba(var(--accent-rgb), 0.12);
+  }
+  .actividad-item .hora {
+    color: var(--text-secondary);
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin-right: 6px;
+  }
+
+  .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(var(--accent-rgb), 0.12);
+  }
+  .chat-header .titulo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+  .chat-header .cerrar {
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 18px;
+    background: none;
+    border: none;
+  }
+
+  .modo-toggle {
+    display: flex;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+  .modo-toggle button {
+    flex: 1;
+    background: rgba(var(--accent-rgb), 0.06);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    color: var(--text-secondary);
+    padding: 10px 6px;
+    border-radius: 8px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    line-height: 1.3;
+  }
+  .modo-toggle button.activo {
+    background: rgba(var(--accent-rgb), 0.18);
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+
+  .chat-mensajes {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .chat-mensajes::-webkit-scrollbar { width: 5px; }
+  .chat-mensajes::-webkit-scrollbar-thumb { background: rgba(var(--accent-rgb),0.2); border-radius: 4px; }
+
+  .mensaje {
+    max-width: 85%;
+    padding: 10px 13px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .mensaje.venok {
+    align-self: flex-start;
+    background: rgba(var(--accent-rgb), 0.1);
+    border: 1px solid rgba(var(--accent-rgb), 0.2);
+    border-bottom-left-radius: 2px;
+  }
+  .mensaje.usuario {
+    align-self: flex-end;
+    background: rgba(255, 122, 26, 0.12);
+    border: 1px solid rgba(255, 122, 26, 0.25);
+    border-bottom-right-radius: 2px;
+  }
+  .mensaje .remitente {
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+    text-transform: uppercase;
+  }
+
+  .chat-input-fila {
+    display: flex;
+    gap: 8px;
+    padding: 14px;
+    border-top: 1px solid rgba(var(--accent-rgb), 0.12);
+  }
+  .chat-input-fila input {
+    flex: 1;
+    background: rgba(var(--accent-rgb), 0.06);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    outline: none;
+  }
+  .chat-input-fila input::placeholder { color: var(--text-secondary); }
+  .chat-input-fila button {
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    width: 42px;
+    color: #05131f;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  /* ---------------- ESCENARIO CENTRAL ---------------- */
+  .escenario {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .stage {
+    position: relative;
+    width: 560px;
+    height: 560px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ticks {
+    position: absolute;
+    width: 480px;
+    height: 480px;
+    border-radius: 50%;
+    animation: girar 60s linear infinite;
+  }
+  .ticks .tick {
+    position: absolute;
+    width: 2px;
+    height: 10px;
+    background: rgba(255, 180, 100, 0.3);
+    left: 50%;
+    top: 0;
+    transform-origin: 1px 240px;
+  }
+
+  .anillo-naranja {
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 122, 26, 0.5);
+  }
+
+  .anillo-azul {
+    position: absolute;
+    width: 350px;
+    height: 350px;
+    border-radius: 50%;
+    border: 2px dashed rgba(var(--accent-rgb), 0.55);
+    animation: girar-inverso 40s linear infinite;
+  }
+
+  .nucleo {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, var(--core-1), var(--core-2) 55%, var(--core-3) 100%);
+    box-shadow: 0 0 40px 10px rgba(var(--accent-rgb), 0.5), 0 0 90px 30px rgba(var(--accent-rgb), 0.25);
+    animation: respirar 3.2s ease-in-out infinite;
+    transition: box-shadow 0.4s ease;
+  }
+  .nucleo::after {
+    content: "";
+    position: absolute;
+    inset: 18%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 45% 40%, rgba(255,255,255,0.9), rgba(255,255,255,0) 60%);
+  }
+
+  .rayos {
+    position: absolute;
+    width: 560px;
+    height: 560px;
+    background: repeating-conic-gradient(rgba(120, 200, 255, 0.05) 0deg 1deg, transparent 1deg 6deg);
+    border-radius: 50%;
+    animation: girar 90s linear infinite;
+    -webkit-mask-image: radial-gradient(circle, black 30%, transparent 70%);
+    mask-image: radial-gradient(circle, black 30%, transparent 70%);
+  }
+
+  .estado-texto { position: absolute; bottom: 20px; text-align: center; }
+  .estado-texto .titulo { font-family: 'Orbitron', sans-serif; font-size: 22px; letter-spacing: 4px; }
+  .estado-texto .subtitulo {
+    margin-top: 6px; font-size: 14px; letter-spacing: 2px; color: var(--text-secondary);
+    text-transform: uppercase; min-height: 18px;
+  }
+
+  .panel-lateral {
+    position: absolute;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: rgba(234, 242, 255, 0.55);
+    text-transform: uppercase;
+    line-height: 1.6;
+  }
+  .panel-izq { left: 4%; top: 30%; text-align: left; width: 160px; }
+  .panel-izq2 { left: 4%; top: 55%; text-align: left; width: 160px; }
+  .panel-der { right: 4%; top: 30%; text-align: right; width: 160px; }
+  .panel-der2 { right: 4%; top: 55%; text-align: right; width: 160px; }
+
+  .barras {
+    position: absolute;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    width: 120px; height: 120px; opacity: 0; transition: opacity 0.3s ease;
+  }
+  .barras.activo { opacity: 1; }
+  .barras span { width: 4px; background: rgba(10,6,2,0.75); border-radius: 2px; animation: onda 0.9s ease-in-out infinite; }
+  .barras span:nth-child(1) { height: 12px; animation-delay: 0s; }
+  .barras span:nth-child(2) { height: 22px; animation-delay: 0.1s; }
+  .barras span:nth-child(3) { height: 30px; animation-delay: 0.2s; }
+  .barras span:nth-child(4) { height: 20px; animation-delay: 0.3s; }
+  .barras span:nth-child(5) { height: 14px; animation-delay: 0.4s; }
+
+  /* ---------------- DOCK INFERIOR ---------------- */
+  .dock {
+    display: flex;
+    justify-content: center;
+    gap: 46px;
+    padding: 14px;
+    border-top: 1px solid rgba(var(--accent-rgb), 0.12);
+  }
+  .dock-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer; color: var(--text-secondary); font-size: 11px; letter-spacing: 1px;
+  }
+  .dock-item .icono { font-size: 20px; }
+  .dock-item:hover, .dock-item.activo { color: var(--accent); }
+
+  @keyframes respirar { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  @keyframes girar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes girar-inverso { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+  @keyframes onda { 0%,100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
+
+  /* ---------------- MODAL DE CONFIGURACIÓN ---------------- */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 4, 10, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .modal-overlay[hidden] { display: none; }
+
+  .modal-config {
+    width: 420px;
+    max-width: 90vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--panel-bg);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .modal-config h2 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    margin: 0 0 4px;
+  }
+  .modal-config .cerrar-modal {
+    float: right;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+  }
+  .modal-config .seccion {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(var(--accent-rgb), 0.15);
+  }
+  .modal-config .seccion h3 {
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+  }
+  .temas-swatches {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .tema-swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .tema-swatch:hover { transform: scale(1.08); }
+  .tema-swatch.activo { border-color: var(--text-primary); }
+
+  .modal-config input[type="text"] {
+    width: 100%;
+    background: rgba(var(--accent-rgb), 0.06);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 10px;
+  }
+  .boton-secundario {
+    background: rgba(var(--accent-rgb), 0.12);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    color: var(--text-primary);
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .tonos-opciones {
+    display: flex;
+    gap: 8px;
+  }
+  .tonos-opciones button {
+    flex: 1;
+    background: rgba(var(--accent-rgb), 0.06);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    color: var(--text-secondary);
+    padding: 9px 4px;
+    border-radius: 8px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .tonos-opciones button.activo {
+    background: rgba(var(--accent-rgb), 0.2);
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+  .modal-config .nota-guardado {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    min-height: 14px;
+  }
+
+  /* ---------------- ANIMACIÓN DE INICIO ---------------- */
+  .pantalla-arranque {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+  }
+  .pantalla-arranque.oculto {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .arranque-marca {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--core-3));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    color: #05131f;
+    opacity: 0;
+    animation: apareceMarca 0.6s ease forwards;
+    box-shadow: 0 0 40px 4px rgba(var(--accent-rgb), 0.4);
+  }
+  .arranque-titulo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 26px;
+    letter-spacing: 7px;
+    opacity: 0;
+    animation: apareceMarca 0.6s ease forwards;
+    animation-delay: 0.25s;
+  }
+  .registro-arranque {
+    margin-top: 10px;
+    min-height: 100px;
+    text-align: center;
+  }
+  .linea-arranque {
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    opacity: 0;
+    transform: translateY(6px);
+    animation: apareceLinea 0.5s ease forwards;
+  }
+  .linea-arranque.lista { color: var(--accent); }
+  @keyframes apareceMarca {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes apareceLinea {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .arranque-marca, .arranque-titulo, .linea-arranque { animation: none; opacity: 1; transform: none; }
+  }
+
+  /* Estados del núcleo */
+  .stage[data-estado="escuchando"] .nucleo {
+    box-shadow: 0 0 55px 16px rgba(var(--accent-rgb), 0.65), 0 0 100px 40px rgba(var(--accent-rgb),0.25);
+  }
+  .stage[data-estado="procesando"] .nucleo {
+    background: radial-gradient(circle at 40% 35%, #eadcff, var(--procesando) 55%, #5a1fa8 100%);
+    box-shadow: 0 0 55px 16px rgba(176, 107, 255, 0.6);
+    animation-duration: 1.2s;
+  }
+  .stage[data-estado="hablando"] .nucleo {
+    background: radial-gradient(circle at 40% 35%, #ffe9c8, var(--hablando) 55%, #b3550a 100%);
+    box-shadow: 0 0 55px 16px rgba(255, 157, 61, 0.6);
+    animation-duration: 0.6s;
+  }
+  .stage[data-estado="error"] .nucleo {
+    background: radial-gradient(circle at 40% 35%, #ffdada, var(--error) 55%, #7a0f1c 100%);
+    box-shadow: 0 0 55px 16px rgba(255, 77, 94, 0.6);
+  }
+</style>
+</head>
+<body>
+
+<div class="pantalla-arranque" id="pantallaArranque">
+  <div class="arranque-marca">V</div>
+  <div class="arranque-titulo nombre-asistente">VENOK</div>
+  <div class="registro-arranque" id="registroArranque">
+    <div class="linea-arranque" style="animation-delay:0.5s">Inicializando núcleo…</div>
+    <div class="linea-arranque" style="animation-delay:1.1s">Cargando reconocimiento de voz…</div>
+    <div class="linea-arranque" style="animation-delay:1.7s">Sincronizando personalidad…</div>
+    <div class="linea-arranque lista" style="animation-delay:2.3s">Sistemas listos.</div>
+  </div>
+</div>
+
+<div class="top-bar">
+  <div class="logo">
+    <div class="logo-marca">V</div>
+    <div class="logo-texto">
+      <div class="titulo nombre-asistente">VENOK</div>
+      <div class="subtitulo">TU ASISTENTE PERSONAL</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <button class="activo">Inicio</button>
+    <button onclick="abrirConfiguracion()">Configuración</button>
+    <button onclick="alert('Próximamente: herramientas adicionales.')">Herramientas</button>
+    <button onclick="alert('Venok — proyecto de asistente personal.')">Acerca de</button>
+  </div>
+  <div class="estado-conexion">
+    <div><span class="punto"></span><span class="linea1">EN LÍNEA</span></div>
+    <div>v2.0.0</div>
+  </div>
+</div>
+
+<div class="cuerpo">
+
+  <div class="panel-chat" id="panelChat">
+    <div class="chat-header">
+      <div class="titulo">CHAT</div>
+      <button class="cerrar" onclick="toggleChat()">✕</button>
+    </div>
+
+    <div class="modo-toggle">
+      <button id="btnModoVoz" class="activo" onclick="cambiarModo('voz')">🎙 Modo voz</button>
+      <button id="btnModoTexto" onclick="cambiarModo('texto')">⌨ Modo texto</button>
+    </div>
+
+    <div class="chat-mensajes" id="chatMensajes">
+      <div class="mensaje venok">
+        <div class="remitente">Venok</div>
+        ¡Hola! Soy Venok. ¿En qué puedo ayudarte hoy?
+      </div>
+    </div>
+
+    <div class="chat-input-fila">
+      <input type="text" id="entradaTexto" placeholder="Escribe tu mensaje..." onkeydown="if(event.key==='Enter') enviarTexto()" />
+      <button onclick="enviarTexto()">➤</button>
+    </div>
+  </div>
+
+  <div class="escenario">
+    <div class="stage" id="stage" data-estado="reposo">
+      <div class="rayos"></div>
+
+      <div class="panel-lateral panel-izq">Reconocimiento de voz<br><span style="color:var(--accent)">Activo</span></div>
+      <div class="panel-lateral panel-izq2">Última acción<br><span id="ultimaAccion" style="color:#eaf2ff">En espera</span></div>
+      <div class="panel-lateral panel-der">Modelo de voz<br><span style="color:var(--accent)">Sistema</span></div>
+      <div class="panel-lateral panel-der2">Modo<br><span id="modoActualLabel" style="color:#eaf2ff">Voz</span></div>
+
+      <div class="ticks" id="ticks"></div>
+      <div class="anillo-naranja"></div>
+      <div class="anillo-azul"></div>
+
+      <div class="nucleo" id="nucleo">
+        <div class="barras" id="barras"><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="estado-texto">
+        <div class="titulo nombre-asistente">VENOK</div>
+        <div class="subtitulo" id="subtitulo">Di "Oye Venok" para empezar</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-actividad oculto" id="panelActividad">
+    <div class="chat-header">
+      <div class="titulo">ACTIVIDAD RECIENTE</div>
+      <button class="cerrar" onclick="toggleActividad()">✕</button>
+    </div>
+    <div class="actividad-lista" id="listaActividad">
+      <div class="actividad-vacia" id="actividadVacia">Aún no hay actividad en esta sesión.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="dock">
+  <div class="dock-item activo" onclick="toggleChat()"><div class="icono">💬</div>CHAT</div>
+  <div class="dock-item" onclick="alert('El modo de voz se cambia desde el panel de chat.')"><div class="icono">🎙</div>VOZ</div>
+  <div class="dock-item" onclick="toggleActividad()"><div class="icono">📋</div>ACTIVIDAD</div>
+  <div class="dock-item" onclick="abrirConfiguracion()"><div class="icono">⚙️</div>CONFIGURACIÓN</div>
+</div>
+
+<div class="modal-overlay" id="modalConfig" hidden>
+  <div class="modal-config">
+    <button class="cerrar-modal" onclick="cerrarConfiguracion()">✕</button>
+    <h2>Configuración</h2>
+
+    <div class="seccion">
+      <h3>Tema de color</h3>
+      <div class="temas-swatches" id="temasSwatches"></div>
+    </div>
+
+    <div class="seccion">
+      <h3>Nombre del asistente</h3>
+      <input type="text" id="inputNombreAsistente" placeholder="Ej: Venok" />
+      <button class="boton-secundario" onclick="guardarNombreAsistente()">Guardar nombre</button>
+      <div class="nota-guardado" id="notaNombre"></div>
+    </div>
+
+    <div class="seccion">
+      <h3>Tono de personalidad</h3>
+      <div class="tonos-opciones" id="tonosOpciones">
+        <button data-tono="formal" onclick="seleccionarTono('formal')">Formal</button>
+        <button data-tono="amigable" onclick="seleccionarTono('amigable')">Amigable</button>
+        <button data-tono="gracioso" onclick="seleccionarTono('gracioso')">Gracioso</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const ticksEl = document.getElementById('ticks');
+  for (let i = 0; i < 72; i++) {
+    const tick = document.createElement('div');
+    tick.className = 'tick';
+    tick.style.transform = `rotate(${(360/72)*i}deg)`;
+    ticksEl.appendChild(tick);
+  }
+
+  const stage = document.getElementById('stage');
+  const subtitulo = document.getElementById('subtitulo');
+  const barras = document.getElementById('barras');
+  const ultimaAccion = document.getElementById('ultimaAccion');
+  const chatMensajes = document.getElementById('chatMensajes');
+  const panelChat = document.getElementById('panelChat');
+  const modoActualLabel = document.getElementById('modoActualLabel');
+
+  const textosEstado = {
+    reposo: 'En espera',
+    escuchando: 'Escuchando...',
+    procesando: 'Procesando...',
+    hablando: 'Respondiendo...',
+    error: 'Algo salió mal',
+  };
+
+  function cambiarEstado(estado) {
+    stage.dataset.estado = estado;
+    subtitulo.textContent = textosEstado[estado] || estado;
+    barras.classList.toggle('activo', estado === 'hablando');
+  }
+
+  function agregarMensaje(remitente, texto) {
+    const div = document.createElement('div');
+    div.className = 'mensaje ' + remitente;
+    const nombre = remitente === 'usuario' ? 'Tú' : 'Venok';
+    div.innerHTML = `<div class="remitente">${nombre}</div>${texto}`;
+    chatMensajes.appendChild(div);
+    chatMensajes.scrollTop = chatMensajes.scrollHeight;
+    if (remitente === 'usuario') {
+      ultimaAccion.textContent = texto.length > 28 ? texto.slice(0, 28) + '…' : texto;
+    }
+  }
+
+  function toggleChat() {
+    panelChat.classList.toggle('oculto');
+  }
+
+  const panelActividad = document.getElementById('panelActividad');
+  const listaActividad = document.getElementById('listaActividad');
+  const actividadVacia = document.getElementById('actividadVacia');
+
+  function toggleActividad() {
+    panelActividad.classList.toggle('oculto');
+  }
+
+  function agregarActividad(texto) {
+    if (actividadVacia) actividadVacia.remove();
+    const hora = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    const item = document.createElement('div');
+    item.className = 'actividad-item';
+    item.innerHTML = `<span class="hora">${hora}</span>${texto}`;
+    listaActividad.appendChild(item);
+    listaActividad.scrollTop = listaActividad.scrollHeight;
+    while (listaActividad.children.length > 30) {
+      listaActividad.removeChild(listaActividad.firstChild);
+    }
+  }
+
+  function cambiarModo(modo) {
+    document.getElementById('btnModoVoz').classList.toggle('activo', modo === 'voz');
+    document.getElementById('btnModoTexto').classList.toggle('activo', modo === 'texto');
+    modoActualLabel.textContent = modo === 'voz' ? 'Voz' : 'Texto';
+    subtitulo.textContent = modo === 'voz' ? `Di "Oye ${nombreAsistenteActual}" para empezar` : 'Escribe tu mensaje abajo';
+
+    if (window.pywebview) {
+      window.pywebview.api.cambiar_modo(modo);
+    }
+  }
+
+  function enviarTexto() {
+    const input = document.getElementById('entradaTexto');
+    const texto = input.value.trim();
+    if (!texto) return;
+    input.value = '';
+    if (window.pywebview) {
+      window.pywebview.api.enviar_texto(texto);
+    }
+  }
+
+  window.venokUI = {
+    cambiarEstado,
+    agregarMensaje,
+    agregarActividad,
+    mostrarAccion: (texto) => { ultimaAccion.textContent = texto; },
+  };
+
+  // ---------------- Configuración: tema, nombre, tono ----------------
+  let nombreAsistenteActual = 'Venok';
+
+  const TEMAS = {
+    azul:    { '--accent': '#4fc3f7', '--accent-rgb': '79, 195, 247',   '--core-1': '#d6f3ff', '--core-2': '#4fc3f7', '--core-3': '#1a6fb8', '--bg': '#050814' },
+    purpura: { '--accent': '#b06bff', '--accent-rgb': '176, 107, 255', '--core-1': '#f0e3ff', '--core-2': '#b06bff', '--core-3': '#5a1fa8', '--bg': '#0c0518' },
+    verde:   { '--accent': '#35e07a', '--accent-rgb': '53, 224, 122',  '--core-1': '#e3fff0', '--core-2': '#35e07a', '--core-3': '#0e6b3f', '--bg': '#04140f' },
+    rojo:    { '--accent': '#ff4d5e', '--accent-rgb': '255, 77, 94',   '--core-1': '#ffe3e3', '--core-2': '#ff4d5e', '--core-3': '#8a0f1c', '--bg': '#160505' },
+  };
+
+  function aplicarTema(nombreTema) {
+    const variables = TEMAS[nombreTema];
+    if (!variables) return;
+    for (const [propiedad, valor] of Object.entries(variables)) {
+      document.documentElement.style.setProperty(propiedad, valor);
+    }
+    try { localStorage.setItem('venok_tema', nombreTema); } catch (e) { /* almacenamiento no disponible */ }
+    document.querySelectorAll('.tema-swatch').forEach((el) => {
+      el.classList.toggle('activo', el.dataset.tema === nombreTema);
+    });
+  }
+
+  function construirSwatches() {
+    const contenedor = document.getElementById('temasSwatches');
+    Object.entries(TEMAS).forEach(([nombreTema, variables]) => {
+      const swatch = document.createElement('div');
+      swatch.className = 'tema-swatch';
+      swatch.dataset.tema = nombreTema;
+      swatch.style.background = variables['--core-2'];
+      swatch.title = nombreTema;
+      swatch.onclick = () => aplicarTema(nombreTema);
+      contenedor.appendChild(swatch);
+    });
+  }
+
+  function cargarTemaGuardado() {
+    let temaGuardado = 'azul';
+    try { temaGuardado = localStorage.getItem('venok_tema') || 'azul'; } catch (e) { /* almacenamiento no disponible */ }
+    aplicarTema(temaGuardado);
+  }
+
+  function aplicarNombreAsistente(nombre) {
+    nombreAsistenteActual = nombre;
+    document.querySelectorAll('.nombre-asistente').forEach((el) => { el.textContent = nombre.toUpperCase(); });
+    if (document.getElementById('btnModoVoz').classList.contains('activo')) {
+      subtitulo.textContent = `Di "Oye ${nombre}" para empezar`;
+    }
+  }
+
+  function actualizarConfiguracionDesdeBackend() {
+    if (!window.pywebview) return;
+    window.pywebview.api.obtener_configuracion().then((config) => {
+      aplicarNombreAsistente(config.nombre_asistente);
+      seleccionarTono(config.tono, false);
+    });
+  }
+
+  function abrirConfiguracion() {
+    document.getElementById('modalConfig').hidden = false;
+    document.getElementById('inputNombreAsistente').value = nombreAsistenteActual;
+    actualizarConfiguracionDesdeBackend();
+  }
+
+  function cerrarConfiguracion() {
+    document.getElementById('modalConfig').hidden = true;
+  }
+
+  function guardarNombreAsistente() {
+    const nombre = document.getElementById('inputNombreAsistente').value.trim();
+    if (!nombre) return;
+    aplicarNombreAsistente(nombre);
+    document.getElementById('notaNombre').textContent = `Guardado. Ahora me llamo ${nombre}.`;
+    if (window.pywebview) {
+      window.pywebview.api.establecer_nombre_asistente(nombre);
+    }
+  }
+
+  function seleccionarTono(tono, avisarPython = true) {
+    document.querySelectorAll('#tonosOpciones button').forEach((boton) => {
+      boton.classList.toggle('activo', boton.dataset.tono === tono);
+    });
+    if (avisarPython && window.pywebview) {
+      window.pywebview.api.establecer_tono(tono);
+    }
+  }
+
+  construirSwatches();
+  cargarTemaGuardado();
+  window.addEventListener('pywebviewready', actualizarConfiguracionDesdeBackend);
+  actualizarConfiguracionDesdeBackend();
+
+  // ---------------- Animación de inicio ----------------
+  (function jugarAnimacionArranque() {
+    const pantalla = document.getElementById('pantallaArranque');
+    const prefiereMenosMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const duracion = prefiereMenosMovimiento ? 400 : 2900;
+    setTimeout(() => { pantalla.classList.add('oculto'); }, duracion);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Entorno virtual
+venv/
+__pycache__/
+*.pyc
+
+# Secretos y configuración local — NUNCA subir esto
+.env
+
+# Artefactos de compilación (se generan con PyInstaller, no son código fuente)
+build/
+dist/
+
+# Capturas de pantalla que Venok pueda generar al correr
+captura_*.png

@@ -1,0 +1,11 @@
+SpeechRecognition
+pyaudio
+requests
+pygame
+pyautogui
+pywebview
+python-dotenv
+pyttsx3
+psutil
+send2trash
+beautifulsoup4
