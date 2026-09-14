@@ -11,6 +11,9 @@ de texto, da igual, ambas pasan por interpretar()— la que la confirme o
 cancele. Así funciona igual en main.py y en app.py.
 """
 
+import capacidades
+import personalidad
+
 PALABRAS_AFIRMATIVAS = (
     "si", "claro", "dale", "adelante", "confirmo", "ok", "de acuerdo", "va",
 )
@@ -28,6 +31,17 @@ def solicitar(pregunta: str, ejecutar, mensaje_cancelado: str = "Entendido, no l
     global _pendiente
     _pendiente = {"ejecutar": ejecutar, "mensaje_cancelado": mensaje_cancelado}
     return pregunta
+
+
+def confirmar_cierre_de_app(proceso: str) -> str:
+    """Cerrar una app puede hacer perder trabajo sin guardar, así que siempre
+    se pregunta primero. Vive aquí para que tanto los comandos de siempre
+    como el agente de IA pidan permiso exactamente igual."""
+    return solicitar(
+        personalidad.sugerencia("cerrar_app") + " ¿Confirmo el cierre?",
+        lambda: capacidades.cerrar_app(proceso),
+        mensaje_cancelado="Entendido, no la cierro.",
+    )
 
 
 def resolver(respuesta_normalizada: str) -> str:

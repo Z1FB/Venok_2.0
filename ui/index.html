@@ -288,6 +288,20 @@
     font-size: 16px;
     cursor: pointer;
   }
+  /* El clip es secundario: se distingue del botón de enviar */
+  .chat-input-fila button.adjuntar {
+    background: rgba(var(--accent-rgb), 0.10);
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    color: var(--text-primary);
+  }
+  .chat-input-fila button.adjuntar:hover { background: rgba(var(--accent-rgb), 0.2); }
+
+  .mensaje img.foto-adjunta {
+    display: block;
+    max-width: 100%;
+    border-radius: 8px;
+    margin-top: 6px;
+  }
 
   /* ---------------- ESCENARIO CENTRAL ---------------- */
   .escenario {
@@ -538,6 +552,37 @@
     min-height: 14px;
   }
 
+  /* ---------------- PANEL DE HERRAMIENTAS ---------------- */
+  .grupo-herramientas + .grupo-herramientas { margin-top: 16px; }
+  .grupo-herramientas h3 {
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+  }
+  .chips-comandos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .chip-comando {
+    background: rgba(var(--accent-rgb), 0.08);
+    border: 1px solid rgba(var(--accent-rgb), 0.28);
+    color: var(--text-primary);
+    border-radius: 100px;
+    padding: 7px 13px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+  }
+  .chip-comando:hover {
+    background: rgba(var(--accent-rgb), 0.2);
+    border-color: var(--accent);
+  }
+
   /* ---------------- ANIMACIÓN DE INICIO ---------------- */
   .pantalla-arranque {
     position: fixed;
@@ -650,7 +695,7 @@
   <div class="nav-links">
     <button class="activo">Inicio</button>
     <button onclick="abrirConfiguracion()">Configuración</button>
-    <button onclick="alert('Próximamente: herramientas adicionales.')">Herramientas</button>
+    <button onclick="abrirHerramientas()">Herramientas</button>
     <button onclick="alert('Venok — proyecto de asistente personal.')">Acerca de</button>
   </div>
   <div class="estado-conexion">
@@ -681,6 +726,7 @@
 
     <div class="chat-input-fila">
       <input type="text" id="entradaTexto" placeholder="Escribe tu mensaje..." onkeydown="if(event.key==='Enter') enviarTexto()" />
+      <button class="adjuntar" onclick="adjuntarImagen()" title="Adjuntar una imagen">📎</button>
       <button onclick="enviarTexto()">➤</button>
     </div>
   </div>
@@ -753,6 +799,15 @@
         <button data-tono="gracioso" onclick="seleccionarTono('gracioso')">Gracioso</button>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalHerramientas" hidden>
+  <div class="modal-config">
+    <button class="cerrar-modal" onclick="cerrarHerramientas()">✕</button>
+    <h2>Herramientas</h2>
+    <div class="nota-guardado">Toca un comando para ejecutarlo.</div>
+    <div id="listaHerramientas"></div>
   </div>
 </div>
 
@@ -845,10 +900,48 @@
     }
   }
 
+  function adjuntarImagen() {
+    if (!window.pywebview) return;
+    // Lo que ya escribió el usuario acompaña a la imagen como pregunta.
+    const input = document.getElementById('entradaTexto');
+    const texto = input.value.trim();
+    input.value = '';
+    window.pywebview.api.adjuntar_imagen(texto);
+  }
+
+  function agregarImagenUsuario(miniaturaBase64, texto) {
+    const div = document.createElement('div');
+    div.className = 'mensaje usuario';
+
+    const remitente = document.createElement('div');
+    remitente.className = 'remitente';
+    remitente.textContent = 'Tú';
+    div.appendChild(remitente);
+
+    if (texto) {
+      // textContent (no innerHTML) para que el texto del usuario nunca
+      // se interprete como HTML.
+      const parrafo = document.createElement('div');
+      parrafo.textContent = texto;
+      div.appendChild(parrafo);
+    }
+
+    const imagen = document.createElement('img');
+    imagen.className = 'foto-adjunta';
+    imagen.src = 'data:image/jpeg;base64,' + miniaturaBase64;
+    imagen.alt = 'Imagen adjuntada';
+    div.appendChild(imagen);
+
+    chatMensajes.appendChild(div);
+    chatMensajes.scrollTop = chatMensajes.scrollHeight;
+    ultimaAccion.textContent = texto ? texto.slice(0, 28) : 'Imagen adjuntada';
+  }
+
   window.venokUI = {
     cambiarEstado,
     agregarMensaje,
     agregarActividad,
+    agregarImagenUsuario,
     mostrarAccion: (texto) => { ultimaAccion.textContent = texto; },
   };
 
@@ -938,7 +1031,75 @@
     }
   }
 
+  // ---------------- Panel de herramientas ----------------
+  // Atajos a los comandos más útiles, para no tener que memorizarlos.
+  const HERRAMIENTAS = {
+    'Mi computadora': [
+      'Cómo está mi computadora',
+      'Especificaciones de mi computadora',
+      'Qué programas están abiertos',
+      'Espacio en disco',
+    ],
+    'Información': [
+      'Clima',
+      'Noticias',
+      'Qué hora es',
+      'Traduce buenos días al inglés',
+    ],
+    'Inteligencia artificial': [
+      'Investiga sobre agujeros negros',
+    ],
+    'Archivos y pantalla': [
+      'Toma una captura',
+      'Abre descargas',
+    ],
+    'Diversión': [
+      'Cuéntame un chiste',
+      'Lanza una moneda',
+    ],
+  };
+
+  function construirHerramientas() {
+    const contenedor = document.getElementById('listaHerramientas');
+    for (const [categoria, comandos] of Object.entries(HERRAMIENTAS)) {
+      const grupo = document.createElement('div');
+      grupo.className = 'grupo-herramientas';
+
+      const titulo = document.createElement('h3');
+      titulo.textContent = categoria;
+      grupo.appendChild(titulo);
+
+      const chips = document.createElement('div');
+      chips.className = 'chips-comandos';
+      comandos.forEach((comando) => {
+        const boton = document.createElement('button');
+        boton.className = 'chip-comando';
+        boton.textContent = comando;
+        boton.onclick = () => ejecutarHerramienta(comando);
+        chips.appendChild(boton);
+      });
+      grupo.appendChild(chips);
+      contenedor.appendChild(grupo);
+    }
+  }
+
+  function ejecutarHerramienta(comando) {
+    cerrarHerramientas();
+    if (window.pywebview) {
+      window.pywebview.api.enviar_texto(comando);
+    }
+  }
+
+  function abrirHerramientas() {
+    document.getElementById('modalHerramientas').hidden = false;
+  }
+
+  function cerrarHerramientas() {
+    document.getElementById('modalHerramientas').hidden = true;
+  }
+
   construirSwatches();
+  construirHerramientas();
   cargarTemaGuardado();
   window.addEventListener('pywebviewready', actualizarConfiguracionDesdeBackend);
   actualizarConfiguracionDesdeBackend();

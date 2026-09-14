@@ -106,6 +106,31 @@ def _extraer_momento(texto: str):
     return None, texto
 
 
+def agregar(tarea: str, momento: datetime.datetime) -> str:
+    """Guarda un recordatorio ya con su fecha resuelta. Lo usan tanto el
+    parseo de frases en español como el agente de IA."""
+    with _lock:
+        lista = _cargar()
+        lista.append({"tarea": tarea, "momento": momento.isoformat(), "avisado": False})
+        _guardar(lista)
+
+    return f"Listo, te recordaré \"{tarea}\" el {momento.strftime('%d/%m a las %H:%M')}."
+
+
+# Al quitar el "cuándo" de la frase quedan palabras sueltas al inicio
+# ("el próximo martes" deja "el próximo"), que suenan raro al repetir la tarea.
+_RELLENO_SOBRANTE = re.compile(r"^(?:el|la|los|las|este|esta|proximo|proxima|que|de)\s+")
+
+
+def _limpiar_tarea(texto: str) -> str:
+    tarea = re.sub(r"\s{2,}", " ", texto).strip(" ,.")
+    anterior = None
+    while tarea != anterior:
+        anterior = tarea
+        tarea = _RELLENO_SOBRANTE.sub("", tarea).strip()
+    return tarea
+
+
 def crear_desde_comando(texto: str) -> str:
     """`texto` es lo que sigue después de 'recuérdame' (ya normalizado)."""
     texto = texto.strip()
@@ -113,19 +138,17 @@ def crear_desde_comando(texto: str) -> str:
         texto = texto[4:]
 
     momento, texto_sin_cuando = _extraer_momento(texto)
-    tarea = re.sub(r"\s{2,}", " ", texto_sin_cuando).strip(" ,.")
+    tarea = _limpiar_tarea(texto_sin_cuando)
 
     if not momento:
-        return "¿Para cuándo quieres que te lo recuerde?"
+        # No se pudo sacar la fecha de la frase (ej. "en media hora"). Se
+        # regresa None para que main.py se lo pase al agente de IA, que sí
+        # sabe interpretar momentos escritos de cualquier forma.
+        return None
     if not tarea:
         return "¿De qué quieres que te recuerde?"
 
-    with _lock:
-        lista = _cargar()
-        lista.append({"tarea": tarea, "momento": momento.isoformat(), "avisado": False})
-        _guardar(lista)
-
-    return f"Listo, te recordaré \"{tarea}\" el {momento.strftime('%d/%m a las %H:%M')}."
+    return agregar(tarea, momento)
 
 
 def listar_pendientes() -> str:

@@ -34,6 +34,7 @@ import voz
 import personalidad
 import memoria
 import recordatorios
+import imagen_ia
 from acciones import normalizar
 from main import escuchar, interpretar  # reutilizamos la lógica ya probada
 
@@ -73,11 +74,46 @@ def agregar_actividad(texto: str) -> None:
     ventana.evaluate_js(f"venokUI.agregarActividad('{_escapar_para_js(texto)}')")
 
 
+def agregar_imagen_chat(miniatura_base64: str, texto: str) -> None:
+    """Muestra en el chat la foto que adjuntó el usuario. El base64 no
+    necesita escaparse (solo trae letras, dígitos, '+', '/' y '='), pero
+    el texto sí."""
+    if not ventana:
+        return
+    ventana.evaluate_js(
+        f"venokUI.agregarImagenUsuario('{miniatura_base64}', '{_escapar_para_js(texto)}')"
+    )
+
+
 def hablar_ui(texto: str) -> None:
     agregar_mensaje_chat("venok", texto)
     actualizar_estado("hablando")
     voz.hablar(texto)
     actualizar_estado("reposo")
+
+
+def procesar_imagen(ruta: str, texto_usuario: str) -> None:
+    """Muestra la foto adjuntada en el chat y se la manda a Claude junto
+    con lo que haya escrito el usuario. Corre en un hilo aparte porque
+    tanto abrir la imagen como la llamada a la API tardan."""
+    actualizar_estado("procesando")
+
+    miniatura, para_enviar = imagen_ia.preparar(ruta)
+    if not para_enviar:
+        actualizar_estado("error")
+        hablar_ui("No pude leer esa imagen. ¿Puedes intentar con otro archivo?")
+        return
+
+    agregar_imagen_chat(miniatura, texto_usuario)
+    agregar_actividad(f"Imagen adjuntada: {os.path.basename(ruta)}")
+
+    respuesta = imagen_ia.analizar(
+        para_enviar,
+        texto_usuario,
+        memoria.obtener_tono(),
+        memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE,
+    )
+    hablar_ui(respuesta)
 
 
 def procesar_comando(texto_usuario: str) -> None:
@@ -148,6 +184,27 @@ class VenokAPI:
             return
         agregar_mensaje_chat("usuario", texto)
         threading.Thread(target=procesar_comando, args=(texto,), daemon=True).start()
+
+    def adjuntar_imagen(self, texto: str = ""):
+        """Abre el selector de archivos nativo para elegir una foto. El
+        diálogo se abre aquí mismo (es rápido y necesita el hilo de la
+        ventana); el análisis se va a un hilo aparte para no congelar la
+        interfaz mientras responde la API."""
+        if not ventana:
+            return
+
+        seleccion = ventana.create_file_dialog(
+            webview.FileDialog.OPEN,
+            allow_multiple=False,
+            file_types=("Imágenes (*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp)", "Todos los archivos (*.*)"),
+        )
+        if not seleccion:
+            return  # el usuario canceló
+
+        ruta = seleccion[0]
+        threading.Thread(
+            target=procesar_imagen, args=(ruta, texto or ""), daemon=True
+        ).start()
 
     def cambiar_modo(self, modo: str):
         global modo_actual

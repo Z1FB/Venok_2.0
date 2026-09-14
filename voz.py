@@ -2,12 +2,62 @@
 Módulo de voz: convierte el texto de las respuestas de Venok en audio.
 
 Soporta dos motores (ver MOTOR_VOZ en config.py):
-- "sistema"    -> voz de Windows vía PowerShell/System.Speech (gratis, sin internet)
+- "sistema"    -> voz de Windows (gratis, sin internet)
 - "elevenlabs" -> API de ElevenLabs (voz más realista, requiere plan pagado
                   para usar voces de biblioteca por API)
+
+Para el motor "sistema" hay dos caminos:
+  1. pyttsx3 con un motor que se crea UNA vez y se reutiliza (~0.07 s por
+     respuesta).
+  2. PowerShell/System.Speech como respaldo, por si pyttsx3 falla en alguna
+     máquina. Es el método original y funciona seguro, pero cuesta ~1.6 s
+     por respuesta porque lanza un proceso nuevo y carga .NET cada vez.
 """
 
+import threading
+
 from config import MOTOR_VOZ
+
+_motor = None
+_candado = threading.Lock()  # una sola locución a la vez: hablar encimado suena horrible
+
+
+def _es_voz_en_espanol(voz_disponible) -> bool:
+    # Ojo: no sirve buscar "es" dentro del id, porque la ruta del registro
+    # de Windows trae "Voices" y hace match con CUALQUIER voz.
+    idiomas = getattr(voz_disponible, "languages", None) or []
+    if any(str(idioma).lower().lstrip("b'").startswith("es") for idioma in idiomas):
+        return True
+    return "_ES-" in (voz_disponible.id or "").upper()
+
+
+def _obtener_motor():
+    """Crea el motor de voz una sola vez y lo deja vivo en memoria."""
+    global _motor
+    if _motor is None:
+        import pyttsx3
+
+        _motor = pyttsx3.init()
+        _motor.setProperty("rate", 190)  # un poco más ágil que el ritmo por defecto
+        for voz_disponible in _motor.getProperty("voices"):
+            if _es_voz_en_espanol(voz_disponible):
+                _motor.setProperty("voice", voz_disponible.id)
+                break
+    return _motor
+
+
+def _hablar_rapido(texto: str) -> bool:
+    """Regresa True si logró hablar; False para que se use el respaldo."""
+    global _motor
+    try:
+        motor = _obtener_motor()
+        motor.say(texto)
+        motor.runAndWait()
+        return True
+    except Exception as error:
+        print(f"[Venok] La voz rápida falló ({error}). Uso el método de respaldo.")
+        _motor = None  # que se vuelva a crear en el siguiente intento
+        return False
 
 
 def _hablar_sistema(texto: str) -> None:
@@ -87,7 +137,8 @@ def _hablar_elevenlabs(texto: str) -> None:
 def hablar(texto: str) -> None:
     print(f"[Venok] {texto}")
 
-    if MOTOR_VOZ == "elevenlabs":
-        _hablar_elevenlabs(texto)
-    else:
-        _hablar_sistema(texto)
+    with _candado:
+        if MOTOR_VOZ == "elevenlabs":
+            _hablar_elevenlabs(texto)
+        elif not _hablar_rapido(texto):
+            _hablar_sistema(texto)

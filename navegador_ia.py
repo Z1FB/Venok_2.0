@@ -24,9 +24,9 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
+import claude_api
 from config import ANTHROPIC_API_KEY
 
-_MODELO = "claude-haiku-4-5-20251001"
 _ENCABEZADOS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) VenokAssistant/1.0"}
 _LARGO_MAXIMO_TEXTO = 6000
 
@@ -47,50 +47,26 @@ def _extraer_texto(url: str):
 
 
 def _preguntar_a_claude(instruccion: str):
-    try:
-        resp = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": _MODELO,
-                "max_tokens": 300,
-                "messages": [{"role": "user", "content": instruccion}],
-            },
-            timeout=20,
-        )
-        resp.raise_for_status()
-        return resp.json()["content"][0]["text"].strip()
-    except (requests.exceptions.RequestException, KeyError, IndexError) as error:
-        print(f"[Venok] Error consultando a Claude: {error}")
-        return None
-
-
-_DESCRIPCION_TONO = {
-    "formal": "formal y respetuoso, tratando de usted",
-    "amigable": "cercano y amable",
-    "gracioso": "divertido y con humor ligero",
-}
+    return claude_api.preguntar(instruccion)
 
 
 def responder_pregunta_general(pregunta: str, tono: str = "amigable", nombre_asistente: str = "Venok"):
     """Último recurso conversacional: cuando ningún comando ni Wolfram Alpha
-    supo responder, se le pregunta directamente a Claude. Regresa None si no
-    hay API key configurada o si la llamada falla, para que quien llame
-    (main.py) pueda seguir con su propio mensaje de 'no entendí'."""
+    supo responder, se le pregunta directamente a Claude, recordando los
+    turnos anteriores para que funcionen preguntas de seguimiento. Regresa
+    None si no hay API key configurada o si la llamada falla, para que quien
+    llame (main.py) pueda seguir con su propio mensaje de 'no entendí'."""
     if not ANTHROPIC_API_KEY:
         return None
 
-    estilo = _DESCRIPCION_TONO.get(tono, _DESCRIPCION_TONO["amigable"])
-    instruccion = (
-        f"Eres {nombre_asistente}, un asistente de voz de escritorio. Responde en "
-        f"español, en un tono {estilo}, de forma breve (2 a 4 oraciones) porque tu "
-        f"respuesta se leerá en voz alta. Pregunta o comentario del usuario: {pregunta}"
+    respuesta = claude_api.preguntar(
+        pregunta,
+        sistema=claude_api.instruccion_de_sistema(tono, nombre_asistente),
+        historial=claude_api.obtener_historial(),
     )
-    return _preguntar_a_claude(instruccion)
+    if respuesta:
+        claude_api.recordar_intercambio(pregunta, respuesta)
+    return respuesta
 
 
 def buscar_y_resumir(consulta: str) -> str:
@@ -105,10 +81,14 @@ def buscar_y_resumir(consulta: str) -> str:
 
     respuesta = _preguntar_a_claude(
         f'Explica brevemente sobre "{consulta}", en 3 o 4 oraciones claras '
-        f"en español, como si se lo fueras a leer en voz alta a alguien."
+        f"en español, como si se lo fueras a leer en voz alta a alguien. "
+        f"Sin títulos, viñetas ni formato de ningún tipo."
     )
     if not respuesta:
         return f"Abrí una búsqueda sobre {consulta} en tu navegador, pero no pude generar una explicación con IA en este momento."
+
+    # Queda en el historial para que funcione un "cuéntame más" después.
+    claude_api.recordar_intercambio(f"Cuéntame sobre {consulta}", respuesta)
     return respuesta
 
 

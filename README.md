@@ -3,20 +3,30 @@
 Asistente de escritorio para Windows, estilo Jarvis, con interfaz visual
 tipo HUD. Escucha comandos por voz o texto, responde con voz, recuerda
 datos entre sesiones, pide confirmación antes de acciones sensibles, y
-puede conversar sobre cualquier tema apoyándose en IA.
+usa IA para entender lo que le pides aunque no lo digas con las palabras
+exactas.
 
 Proyecto escolar — ver [`CONTEXTO_PARA_CLAUDE_CODE.md`](CONTEXTO_PARA_CLAUDE_CODE.md)
 para el historial de decisiones de diseño.
 
 ## Qué puede hacer
 
-- **Conversación y memoria**: recuerda tu nombre y ciudad entre sesiones;
-  cambia su propio nombre y tono de personalidad (formal / amigable /
-  gracioso) cuando se lo pidas.
-- **Recordatorios**: "recuérdame llamar a mamá mañana a las 5" — entiende
-  fechas relativas en español y avisa solo, en segundo plano.
+- **Agente de IA**: Claude tiene acceso a las capacidades reales de Venok,
+  así que entiende frases naturales aunque no coincidan con ningún comando
+  ("recuérdame en media hora sacar la ropa", "abre el navegador y busca
+  recetas de pizza", "quiero escuchar música de los 80").
+- **Conversación con contexto**: mantiene el hilo de los últimos turnos, así
+  que funcionan las preguntas de seguimiento ("¿y de los perros?").
+- **Memoria y personalidad**: recuerda tu nombre y ciudad entre sesiones;
+  puedes cambiarle su propio nombre y su tono (formal / amigable / gracioso).
+- **Imágenes**: adjunta una foto desde el chat con el botón 📎 y Venok la
+  analiza y te cuenta qué ve.
+- **Recordatorios**: "recuérdame llamar a mamá mañana a las 5" — avisa solo,
+  en segundo plano, y sobreviven a reiniciar la app.
 - **Información**: clima, hora en cualquier país, noticias, definiciones
-  (Wikipedia), conversión de moneda, calculadora.
+  (Wikipedia), conversión de monedas y de unidades, calculadora.
+- **Traductor**: "traduce buenos días al inglés", "¿cómo se dice niño en
+  francés?" — 10 idiomas.
 - **Sistema**: apps, sitios web y juegos (abrir/cerrar/buscar), volumen,
   bloquear pantalla, vaciar papelera, multimedia, capturas de pantalla,
   inicio automático con Windows.
@@ -26,17 +36,32 @@ para el historial de decisiones de diseño.
 - **Archivos**: buscar, abrir y eliminar archivos en tus carpetas
   comunes (eliminar siempre va a la papelera de reciclaje, nunca borrado
   permanente).
-- **IA**: investiga temas en internet (abre el navegador y resume con
-  Claude), resume una página que le indiques, y si ningún comando ni
-  Wolfram Alpha supo responder, conversa contigo de todos modos.
+- **Investigación web**: abre el navegador y te resume el tema con IA, o
+  resume una página concreta que le indiques.
+- **Correo** (opcional): revisar la bandeja de entrada y enviar mensajes.
 - **Accesibilidad**: control de mouse y teclado por voz (mover, clic,
   escribir, teclas, scroll).
 - **Permisos**: cualquier acción sensible (cerrar apps, vaciar la
-  papelera, eliminar archivos, abrir redes sociales, activar el inicio
-  automático) pide confirmación antes de ejecutarse.
+  papelera, eliminar archivos, enviar correos, abrir redes sociales,
+  activar el inicio automático) pide confirmación antes de ejecutarse —
+  venga la orden de un comando o del agente de IA.
 
 Todo funciona igual por voz o por texto, y desde `app.py` (con interfaz)
 o `main.py` (solo consola).
+
+## Cómo decide qué hacer
+
+Venok intenta resolver cada frase en este orden, para ser rápido y barato
+antes de gastar una llamada a la IA:
+
+1. **Reglas** — los comandos conocidos se resuelven al instante y sin costo.
+2. **Wolfram Alpha** — solo si la pregunta trae números o pide una magnitud
+   ("¿cuántos km hay a la luna?"), que es donde es más preciso y es gratis.
+3. **Agente de IA** — en una sola llamada decide si usar una capacidad de
+   Venok (con los argumentos ya extraídos) o simplemente conversar.
+
+Si una regla captura la frase pero no logra resolverla, cede el turno al
+agente en vez de responder con un callejón sin salida.
 
 ## Paso 1 — Instalar Python
 
@@ -70,7 +95,8 @@ sin esa función específica:
 |----------------------|----------------------------------------------------------|--------------------|
 | `ELEVENLABS_API_KEY` | Voz más realista (requiere plan pagado, ~$5 USD/mes)     | https://elevenlabs.io |
 | `WOLFRAM_APP_ID`     | Respuestas de ciencia/matemáticas/datos (gratis)         | https://developer.wolframalpha.com |
-| `ANTHROPIC_API_KEY`  | Investigar en internet, resumir páginas, y conversar sobre cualquier tema con IA (costo mínimo por uso) | https://console.anthropic.com/settings/keys |
+| `ANTHROPIC_API_KEY`  | El agente de IA: entender frases naturales, analizar imágenes, investigar, traducir y conversar (costo mínimo por uso) | https://console.anthropic.com/settings/keys |
+| `CORREO_USUARIO` y `CORREO_PASSWORD` | Revisar y enviar correos. La contraseña es una "contraseña de aplicación", no la de tu cuenta | https://myaccount.google.com/apppasswords |
 
 Por defecto (`MOTOR_VOZ=sistema`) Venok habla con las voces que ya trae
 Windows, sin necesitar ninguna clave. Si quieres usar ElevenLabs, agrega
@@ -101,12 +127,14 @@ hayas puesto) antes de cada comando en modo voz.
 ```
 Oye Venok, hola
 Me llamo Ana
-Clima en Madrid
-Recuérdame tomar agua en 20 minutos
+Clima de Madrid
+Recuérdame en media hora sacar la ropa
+Ponme un recordatorio para el viernes a las 3
 Cómo está mi computadora
+Traduce buenos días al inglés
 Investiga sobre agujeros negros
-Abre YouTube
-Busca tutoriales de Python en YouTube
+Quiero escuchar música de los 80
+Abre el navegador y busca recetas de pizza
 Mueve el mouse a la derecha / Haz clic / Escribe hola / Presiona enter
 Llámate Jarvis
 Modo gracioso
@@ -114,7 +142,11 @@ Ayuda
 ```
 
 `ayuda` (o "qué puedes hacer") hace que Venok resuma en voz alta todo lo
-que sabe hacer.
+que sabe hacer. El botón **Herramientas** de la interfaz también muestra
+atajos a los comandos más usados, y se ejecutan con un clic.
+
+Para analizar una imagen: escribe tu pregunta (opcional), toca **📎** y
+elige la foto.
 
 ## Paso 6 — Empaquetar como .exe (opcional)
 
@@ -198,9 +230,9 @@ venok/
 ├── app.py                    # Aplicación completa (interfaz + asistente)
 ├── main.py                   # Cerebro del asistente + versión solo consola
 ├── config.py                 # Configuración y claves de API (lee .env)
-├── voz.py                    # Texto a voz (sistema o ElevenLabs)
-├── acciones.py                # Abrir sitios, apps y juegos
-├── capacidades.py             # Clima, noticias, hora, definiciones, Wolfram Alpha...
+├── voz.py                    # Texto a voz (motor del sistema o ElevenLabs)
+├── acciones.py                # Abrir sitios, apps y juegos + emparejado difuso
+├── capacidades.py             # Clima, noticias, hora, definiciones, traductor, Wolfram
 ├── control_mouse_teclado.py  # Control de mouse/teclado por voz
 ├── personalidad.py           # Frases y tonos (formal/amigable/gracioso)
 ├── memoria.py                 # Memoria persistente y de sesión
@@ -210,7 +242,11 @@ venok/
 ├── archivos.py                  # Buscar, abrir y eliminar archivos
 ├── recordatorios.py             # Recordatorios con fechas en lenguaje natural
 ├── inicio_automatico.py         # Inicio automático con Windows (registro)
-├── navegador_ia.py               # Investigar/resumir con IA (Claude)
+├── correo.py                     # Revisar y enviar correos (IMAP/SMTP)
+├── claude_api.py                 # Cliente compartido de Claude + historial
+├── agente.py                      # Herramientas que la IA puede usar
+├── imagen_ia.py                   # Análisis de imágenes adjuntadas
+├── navegador_ia.py               # Investigar/resumir páginas con IA
 ├── ui/index.html               # Interfaz visual (HUD, chat, actividad, config)
 ├── requirements.txt
 ├── .env.example

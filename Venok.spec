@@ -6,7 +6,9 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('ui', 'ui')],
-    hiddenimports=[],
+    # pyttsx3 carga su driver dinámicamente, así que PyInstaller no lo ve
+    # al analizar los imports y el .exe se quedaría sin voz rápida.
+    hiddenimports=['pyttsx3.drivers', 'pyttsx3.drivers.sapi5'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

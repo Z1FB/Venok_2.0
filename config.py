@@ -49,6 +49,12 @@ WOLFRAM_APP_ID = os.environ.get("WOLFRAM_APP_ID")
 # --- Anthropic / Claude (para investigar y resumir páginas web con IA) ---
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
+# --- Correo (Gmail) ---
+# La contraseña NO es la de tu cuenta: es una "contraseña de aplicación"
+# que se genera en https://myaccount.google.com/apppasswords
+CORREO_USUARIO = os.environ.get("CORREO_USUARIO")
+CORREO_PASSWORD = os.environ.get("CORREO_PASSWORD")
+
 if MOTOR_VOZ == "elevenlabs" and not ELEVENLABS_API_KEY:
     print(
         "[AVISO] No se encontró ELEVENLABS_API_KEY.\n"

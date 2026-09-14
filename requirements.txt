@@ -9,3 +9,4 @@ pyttsx3
 psutil
 send2trash
 beautifulsoup4
+Pillow

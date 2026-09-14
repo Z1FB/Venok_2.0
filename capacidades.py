@@ -27,6 +27,7 @@ import xml.etree.ElementTree as ET
 import requests
 import pyautogui
 
+import claude_api
 from acciones import normalizar
 from config import WOLFRAM_APP_ID
 
@@ -258,6 +259,52 @@ def definir(termino: str) -> str:
         return "No pude conectarme a internet para buscar esa definición."
 
 
+# Idiomas que Venok sabe nombrar, en su forma normalizada (sin tildes):
+# nombre para decirlo en voz alta + código para la API de respaldo.
+IDIOMAS = {
+    "ingles": ("inglés", "en"),
+    "espanol": ("español", "es"),
+    "castellano": ("español", "es"),
+    "frances": ("francés", "fr"),
+    "aleman": ("alemán", "de"),
+    "italiano": ("italiano", "it"),
+    "portugues": ("portugués", "pt"),
+    "japones": ("japonés", "ja"),
+    "chino": ("chino", "zh"),
+    "coreano": ("coreano", "ko"),
+    "ruso": ("ruso", "ru"),
+}
+
+
+def traducir(texto: str, idioma_norm: str) -> str:
+    """Traduce `texto` al idioma pedido. Usa Claude, que entiende contexto y
+    modismos; si no hay API key o falla, cae a la API gratuita de MyMemory
+    (la misma que ya se usa para las consultas a Wolfram Alpha)."""
+    texto = texto.strip(" ¿?¡!.,")
+    if not texto:
+        return "¿Qué quieres que traduzca?"
+
+    idioma = IDIOMAS.get(idioma_norm)
+    if not idioma:
+        return f"Todavía no sé traducir a {idioma_norm}."
+    nombre_idioma, codigo = idioma
+
+    respuesta = claude_api.preguntar(
+        f"Traduce al {nombre_idioma} y responde ÚNICAMENTE con la traducción, "
+        f"sin comillas ni explicaciones: {texto}",
+        max_tokens=200,
+    )
+    if not respuesta:
+        # Si el destino es español se asume que el original venía en inglés,
+        # y al revés. Cubre los dos casos más comunes.
+        origen = "en" if codigo == "es" else "es"
+        respuesta = _traducir(texto, origen, codigo)
+
+    if not respuesta or respuesta == texto:
+        return "No pude traducir eso en este momento."
+    return f"En {nombre_idioma} se dice: {respuesta}"
+
+
 MONEDAS = {
     "dolares": "USD", "dolar": "USD",
     "euros": "EUR", "euro": "EUR",
@@ -267,11 +314,34 @@ MONEDAS = {
     "yenes": "JPY", "yen": "JPY",
 }
 
+# Para poder decir el código directo ("convierte 100 USD a JPY") sin que
+# cualquier palabra de tres letras se confunda con una moneda.
+CODIGOS_MONEDA = {
+    "USD", "EUR", "GBP", "JPY", "MXN", "CRC", "CAD", "AUD", "CHF", "CNY",
+    "BRL", "ARS", "CLP", "COP", "SEK", "NOK", "DKK", "PLN", "INR", "KRW",
+    "ZAR", "NZD",
+}
 
-def convertir_moneda_comando(comando: str) -> str:
+
+def _codigo_de_moneda(texto: str):
+    """Regresa el código ISO si el texto nombra una moneda; None si no lo es
+    (por ejemplo 'fahrenheit' o 'millas')."""
+    if not texto:
+        return None
+    normalizado = normalizar(texto)
+    if normalizado in MONEDAS:
+        return MONEDAS[normalizado]
+    if normalizado.upper() in CODIGOS_MONEDA:
+        return normalizado.upper()
+    return None
+
+
+def convertir_moneda_comando(comando: str):
+    """Convierte entre monedas. Regresa None si lo que se pide convertir NO
+    son monedas (grados, kilómetros, kilos...), para que quien llame deje
+    que lo resuelva Wolfram Alpha, que sí sabe de unidades."""
     # Si dice "$100" en vez de "100 dólares", no hay palabra de moneda entre
     # el número y "a" — en ese caso asumimos dólares por defecto.
-    tiene_signo_dolar = "$" in comando
     texto = comando.replace("$", " ")
 
     coincidencia = re.search(
@@ -280,16 +350,23 @@ def convertir_moneda_comando(comando: str) -> str:
         re.IGNORECASE,
     )
     if not coincidencia:
-        return "Dime la cantidad y las monedas, por ejemplo: convierte 100 dólares a euros."
+        return None
 
     cantidad_texto, origen_texto, destino_texto = coincidencia.groups()
     cantidad = float(cantidad_texto)
 
-    if not origen_texto:
-        origen_texto = "dólares" if tiene_signo_dolar else "dólares"  # valor por defecto
+    destino_codigo = _codigo_de_moneda(destino_texto)
+    if not destino_codigo:
+        return None  # no es una moneda: que lo conteste Wolfram Alpha
 
-    origen_codigo = MONEDAS.get(normalizar(origen_texto), normalizar(origen_texto).upper())
-    destino_codigo = MONEDAS.get(normalizar(destino_texto), normalizar(destino_texto).upper())
+    origen_codigo = _codigo_de_moneda(origen_texto)
+    if origen_texto and not origen_codigo:
+        # El origen es una unidad, no una moneda ("10 kilos a libras"):
+        # ojo, "libras" es moneda Y peso, así que el origen es lo que decide.
+        return None
+    # Sin moneda de origen ("$100 a euros") se asumen dólares.
+    origen_codigo = origen_codigo or "USD"
+    origen_texto = origen_texto or "dólares"
 
     try:
         resp = requests.get(

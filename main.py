@@ -24,15 +24,27 @@ import recordatorios
 import inicio_automatico
 import analisis_equipo
 import navegador_ia
+import claude_api
+import correo
+import agente
 
 reconocedor = sr.Recognizer()
 
 PALABRAS_REDES_SOCIALES = {"facebook", "instagram"}
 
+_microfono_calibrado = False
+
 
 def escuchar() -> str:
+    global _microfono_calibrado
     with sr.Microphone() as fuente:
-        reconocedor.adjust_for_ambient_noise(fuente, duration=0.5)
+        # Calibrar el ruido ambiental cuesta medio segundo, y antes se hacía
+        # en CADA ciclo de escucha. Con hacerlo una vez basta: el
+        # reconocedor sigue ajustando el umbral solo mientras escucha
+        # (dynamic_energy_threshold).
+        if not _microfono_calibrado:
+            reconocedor.adjust_for_ambient_noise(fuente, duration=0.8)
+            _microfono_calibrado = True
         print("Escuchando...")
         try:
             audio = reconocedor.listen(fuente, timeout=6, phrase_time_limit=6)
@@ -48,6 +60,55 @@ def escuchar() -> str:
     except sr.RequestError as error:
         print(f"Error con el servicio de reconocimiento: {error}")
         return ""
+
+
+_PATRON_ENVIAR_CORREO = re.compile(
+    r"(?:envia|manda|escribe)(?:le)?\s+un\s+correo\s+a\s+(.+?)\s+"
+    r"(?:diciendo(?:le)?\s+(?:que\s+)?|con\s+el\s+mensaje\s+)(.+?)\s*[.]?$"
+)
+_PATRON_TRADUCIR = re.compile(r"traduce(?:me)?\s+(.+?)\s+a[lo]?\s+(\w+)\s*[.?]?$")
+_PATRON_COMO_SE_DICE = re.compile(r"como\s+se\s+dice\s+(.+?)\s+en\s+(\w+)\s*[.?]?$")
+
+PALABRAS_DE_DATOS = (
+    "distancia", "masa", "velocidad", "densidad", "temperatura", "raiz",
+    "poblacion", "altura", "peso", "equivale", "formula", "orbita",
+    "cuantos", "cuantas", "cuanta",
+)
+
+
+def _abrir_sitio_con_permiso(nombre: str) -> str:
+    if nombre in PALABRAS_REDES_SOCIALES:
+        return permisos.solicitar(
+            personalidad.sugerencia("abrir_red_social"),
+            lambda: acciones.abrir_sitio(nombre),
+            mensaje_cancelado="Entendido, no la abro por ahora.",
+        )
+    return acciones.abrir_sitio(nombre)
+
+
+# Palabras que siguen a "de"/"en" pero NO son una ciudad ("el clima de hoy").
+_NO_SON_CIUDADES = {"hoy", "manana", "ahora", "aqui", "aca", "mi ciudad", "esta semana"}
+
+
+def _ciudad_del_comando(comando: str, comando_norm: str):
+    """Saca la ciudad de frases como 'clima en Madrid' o 'clima de Madrid'.
+    Antes solo se aceptaba 'en', así que 'el clima de Madrid' respondía con
+    la ciudad por defecto sin avisar que se había equivocado."""
+    for separador in (" en ", " de "):
+        if separador in comando_norm:
+            candidata = comando.split(separador, 1)[-1].strip(" ?¿.,!¡")
+            if candidata and normalizar(candidata) not in _NO_SON_CIUDADES:
+                return candidata
+    return None
+
+
+def _parece_pregunta_de_datos(comando_norm: str) -> bool:
+    """Si la pregunta trae números o pide una magnitud concreta, conviene
+    mandarla a Wolfram Alpha antes que a Claude: es más preciso para eso,
+    y no cuesta."""
+    if re.search(r"\d", comando_norm):
+        return True
+    return any(palabra in comando_norm for palabra in PALABRAS_DE_DATOS)
 
 
 def interpretar(comando: str) -> str:
@@ -118,9 +179,35 @@ def interpretar(comando: str) -> str:
         estado = "activado" if inicio_automatico.esta_activado() else "desactivado"
         return f"El inicio automático con Windows está {estado}."
 
+    # --- Correo ---
+    if ("correo" in comando_norm or "correos" in comando_norm) and any(
+        palabra in comando_norm for palabra in ("revisa", "tengo", "nuevos", "sin leer", "bandeja")
+    ):
+        return correo.revisar()
+
+    coincidencia_correo = _PATRON_ENVIAR_CORREO.search(comando_norm)
+    if coincidencia_correo:
+        destinatario = correo.resolver_destinatario(coincidencia_correo.group(1))
+        if not destinatario:
+            return (f"No sé a qué dirección mandarle a {coincidencia_correo.group(1)}. "
+                    f"Puedes agregarlo a la agenda en correo.py o decirme la dirección completa.")
+        # El mensaje se recorta del comando ORIGINAL para no perder acentos.
+        cuerpo = comando[coincidencia_correo.start(2):coincidencia_correo.end(2)].strip()
+        if not cuerpo:
+            return "¿Qué quieres que le diga?"
+        return permisos.solicitar(
+            f'Voy a enviarle a {destinatario} el mensaje: "{cuerpo}". ¿Lo mando?',
+            lambda: correo.enviar(destinatario, cuerpo),
+            mensaje_cancelado="Entendido, no envío el correo.",
+        )
+
     # --- Recordatorios ---
     if comando_norm.startswith("recuerdame"):
-        return recordatorios.crear_desde_comando(comando_norm[len("recuerdame"):])
+        respuesta_recordatorio = recordatorios.crear_desde_comando(comando_norm[len("recuerdame"):])
+        if respuesta_recordatorio:
+            return respuesta_recordatorio
+        # No se entendió la fecha: sigue de largo para que el agente de IA lo
+        # intente, en vez de responder con un callejón sin salida.
 
     if "cancela" in comando_norm and "recordatorio" in comando_norm:
         recordatorios.cancelar_todos()
@@ -145,7 +232,9 @@ def interpretar(comando: str) -> str:
             "'inicie con Windows' para abrirme solo al encender tu computadora. "
             "Puedo darte las especificaciones de tu equipo y sus programas instalados, "
             "investigar temas en internet y resumírtelos con inteligencia artificial, "
-            "y si no reconozco un comando, hago lo posible por conversar contigo de todos modos."
+            "traducir a varios idiomas, por ejemplo 'traduce buenos días al inglés', "
+            "y revisar o enviar correos si configuraste tu cuenta. "
+            "Si no reconozco un comando, hago lo posible por conversar contigo de todos modos."
         )
 
     # --- Diversión ---
@@ -158,7 +247,7 @@ def interpretar(comando: str) -> str:
 
     # --- Información ---
     if "clima" in comando_norm or "tiempo" in comando_norm:
-        ciudad = comando.split(" en ", 1)[-1].strip() if " en " in comando_norm else None
+        ciudad = _ciudad_del_comando(comando, comando_norm)
         if not ciudad:
             # Sin ciudad explícita: usa la última consultada en esta sesión,
             # luego la ciudad favorita guardada, antes de caer al valor por
@@ -182,8 +271,22 @@ def interpretar(comando: str) -> str:
         termino = re.sub(r"^(que es|define|definicion de)\s*", "", comando_norm).strip()
         return capacidades.definir(termino)
 
+    # --- Traductor ---
+    # La detección se hace sobre el texto normalizado (para que funcione con
+    # o sin tildes), pero lo que se traduce se recorta del comando ORIGINAL,
+    # así no se pierden los acentos de la frase.
+    for patron in (_PATRON_TRADUCIR, _PATRON_COMO_SE_DICE):
+        coincidencia = patron.search(comando_norm)
+        if coincidencia:
+            texto_a_traducir = comando[coincidencia.start(1):coincidencia.end(1)]
+            return capacidades.traducir(texto_a_traducir, coincidencia.group(2))
+
     if "convierte" in comando_norm and " a " in comando_norm:
-        return capacidades.convertir_moneda_comando(comando)
+        respuesta_moneda = capacidades.convertir_moneda_comando(comando)
+        if respuesta_moneda:
+            return respuesta_moneda
+        # No eran monedas (grados, kilómetros, kilos...): se deja seguir para
+        # que termine en Wolfram Alpha, que sí resuelve unidades.
 
     # --- Control de navegador con IA (busca, abre y resume con Claude) ---
     if comando_norm.startswith("investiga sobre ") or comando_norm.startswith("investiga "):
@@ -267,11 +370,7 @@ def interpretar(comando: str) -> str:
     if "cierra" in comando_norm or "cerrar" in comando_norm:
         for nombre, proceso in capacidades.PROCESOS.items():
             if normalizar(nombre) in comando_norm:
-                return permisos.solicitar(
-                    personalidad.sugerencia("cerrar_app") + " ¿Confirmo el cierre?",
-                    lambda proceso=proceso: capacidades.cerrar_app(proceso),
-                    mensaje_cancelado="Entendido, no la cierro.",
-                )
+                return permisos.confirmar_cierre_de_app(proceso)
 
         # Sin nombre explícito ("ciérrala", "cierra eso"): usa la última
         # app que Venok abrió en esta sesión, si conoce su proceso.
@@ -279,12 +378,12 @@ def interpretar(comando: str) -> str:
             ultima_app = memoria.obtener_contexto("ultima_app")
             proceso = capacidades.PROCESOS.get(ultima_app) if ultima_app else None
             if proceso:
-                return permisos.solicitar(
-                    personalidad.sugerencia("cerrar_app") + " ¿Confirmo el cierre?",
-                    lambda proceso=proceso: capacidades.cerrar_app(proceso),
-                    mensaje_cancelado="Entendido, no la cierro.",
-                )
+                return permisos.confirmar_cierre_de_app(proceso)
             return "No recuerdo qué aplicación abrí para cerrarla."
+
+        parecido = acciones.buscar_parecido(comando_norm, capacidades.PROCESOS)
+        if parecido:
+            return permisos.confirmar_cierre_de_app(capacidades.PROCESOS[parecido])
 
         return "¿Qué aplicación quiere que cierre?"
 
@@ -358,6 +457,9 @@ def interpretar(comando: str) -> str:
             for nombre in acciones.JUEGOS:
                 if normalizar(nombre) in comando_norm:
                     return acciones.abrir_juego(nombre)
+            parecido = acciones.buscar_parecido(comando_norm, acciones.JUEGOS)
+            if parecido:
+                return acciones.abrir_juego(parecido)
             return "¿Qué juego quiere que abra?"
 
         for nombre in capacidades.CARPETAS_COMUNES:
@@ -371,15 +473,27 @@ def interpretar(comando: str) -> str:
 
         for nombre in acciones.SITIOS:
             if normalizar(nombre) in comando_norm:
-                if nombre in PALABRAS_REDES_SOCIALES:
-                    return permisos.solicitar(
-                        personalidad.sugerencia("abrir_red_social"),
-                        lambda nombre=nombre: acciones.abrir_sitio(nombre),
-                        mensaje_cancelado="Entendido, no la abro por ahora.",
-                    )
-                return acciones.abrir_sitio(nombre)
+                return _abrir_sitio_con_permiso(nombre)
 
-        return "No entendí qué quiere que abra."
+        # Nada coincidió exacto. El reconocedor de voz escribe mal los
+        # nombres propios muy seguido ("cromo" por "chrome"), así que se
+        # busca el más parecido antes de rendirse.
+        parecido = acciones.buscar_parecido(comando_norm, acciones.APPS)
+        if parecido:
+            memoria.recordar_contexto("ultima_app", parecido)
+            return acciones.abrir_app(parecido)
+
+        parecido = acciones.buscar_parecido(comando_norm, acciones.SITIOS)
+        if parecido:
+            return _abrir_sitio_con_permiso(parecido)
+
+        parecido = acciones.buscar_parecido(comando_norm, capacidades.CARPETAS_COMUNES)
+        if parecido:
+            return capacidades.abrir_carpeta_comun(parecido)
+
+        # Ni exacto ni parecido: se sigue de largo para que el agente de IA
+        # lo intente ("abre el navegador y busca recetas de pizza" no nombra
+        # ninguna app, pero sí se puede resolver).
 
     # --- Conversación / personalidad ---
     if "hola" in comando_norm:
@@ -389,21 +503,34 @@ def interpretar(comando: str) -> str:
         return "Con gusto. Para eso estoy."
 
     if "adios" in comando_norm or "salir" in comando_norm:
+        claude_api.limpiar_historial()
         return "SALIR"
 
-    # --- Último recurso, en dos pasos ---
-    # 1) Wolfram Alpha: rápido y gratis, bueno para ciencia/matemáticas/datos.
-    respuesta_wolfram = capacidades.preguntar_wolfram(comando)
-    if respuesta_wolfram:
-        return respuesta_wolfram
+    # --- Último recurso: Wolfram Alpha y Claude, en el orden más conveniente ---
+    # Wolfram tarda ~3.5 s (traduce al inglés, consulta, y retraduce) mientras
+    # que Claude tarda ~1 s. Por eso Wolfram solo va primero cuando la
+    # pregunta parece de cálculo o datos duros, que es donde gana en precisión
+    # y además es gratis. Para todo lo demás Claude responde primero, y si no
+    # está disponible (sin API key o sin internet) Wolfram queda de respaldo.
+    def _intentar_wolfram():
+        return capacidades.preguntar_wolfram(comando)
 
-    # 2) Si ni así, se le pregunta directamente a Claude (si hay API key
-    # configurada) para que Venok pueda conversar sobre cualquier cosa en
-    # vez de simplemente rendirse.
-    nombre_asistente = memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE
-    respuesta_ia = navegador_ia.responder_pregunta_general(comando, memoria.obtener_tono(), nombre_asistente)
-    if respuesta_ia:
-        return respuesta_ia
+    def _intentar_claude():
+        # El agente resuelve las dos cosas en una sola llamada: si lo pedido
+        # coincide con alguna capacidad de Venok la ejecuta, y si no,
+        # simplemente conversa.
+        nombre_asistente = memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE
+        return agente.atender(comando, memoria.obtener_tono(), nombre_asistente)
+
+    if _parece_pregunta_de_datos(comando_norm):
+        intentos = (_intentar_wolfram, _intentar_claude)
+    else:
+        intentos = (_intentar_claude, _intentar_wolfram)
+
+    for intentar in intentos:
+        respuesta = intentar()
+        if respuesta:
+            return respuesta
 
     return personalidad.no_entendido()
 
@@ -415,7 +542,13 @@ def main() -> None:
 
     while True:
         comando = escuchar()
-        respuesta = interpretar(comando)
+        try:
+            respuesta = interpretar(comando)
+        except Exception as error:
+            # Igual que en app.py: un comando que falle no debe tumbar a Venok.
+            print(f"[Venok] Error al interpretar comando: {error}")
+            hablar("Tuve un problema procesando eso. ¿Puedes repetirlo?")
+            continue
 
         if respuesta == "SALIR":
             hablar(personalidad.despedida())

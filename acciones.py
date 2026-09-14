@@ -7,6 +7,7 @@ antes de la demo. Los nombres de la izquierda son los que el usuario dirá
 en voz alta (o escribirá) para activar cada acción.
 """
 
+import difflib
 import webbrowser
 import subprocess
 import platform
@@ -21,6 +22,51 @@ def normalizar(texto: str) -> str:
     texto = texto.lower().strip()
     forma_descompuesta = unicodedata.normalize("NFD", texto)
     return "".join(c for c in forma_descompuesta if unicodedata.category(c) != "Mn")
+
+
+# Palabras que nunca son el nombre de algo que abrir o cerrar. Sin esta
+# lista, verbos y artículos se parecen por accidente a nombres cortos
+# (por ejemplo "busca" contra la carpeta "musica", que dan 0.73).
+_PALABRAS_IGNORADAS = {
+    "abre", "abrir", "abreme", "busca", "buscar", "cierra", "cerrar",
+    "ponme", "quiero", "necesito", "dame", "muestra", "por", "favor",
+    "el", "la", "lo", "los", "las", "un", "una", "unos", "unas",
+    "y", "o", "de", "del", "al", "a", "que", "con", "en", "para",
+    "mi", "mis", "me", "te", "se", "tu", "todo", "toda", "todos", "todas",
+}
+
+
+def buscar_parecido(texto_norm: str, nombres, umbral: float = 0.7):
+    """Busca cuál de `nombres` se parece más a algo dicho dentro del texto.
+
+    El reconocimiento de voz escribe mal los nombres propios muy seguido
+    ("desacuerdo" en vez de "discord"), así que cuando la comparación exacta
+    falla se recurre a esto antes de rendirse. Regresa None si nada se
+    parece lo suficiente, para no abrir una aplicación al azar.
+    """
+    palabras = texto_norm.split()
+    if not palabras:
+        return None
+
+    mejor_nombre = None
+    mejor_puntaje = 0.0
+
+    for nombre in nombres:
+        nombre_norm = normalizar(nombre)
+        cantidad = len(nombre_norm.split())
+        # Se prueban ventanas de distintos tamaños porque el usuario puede
+        # decir el nombre incompleto o con una palabra de más.
+        for tamano in range(1, cantidad + 2):
+            for inicio in range(len(palabras) - tamano + 1):
+                trozo = palabras[inicio:inicio + tamano]
+                if all(palabra in _PALABRAS_IGNORADAS for palabra in trozo):
+                    continue
+                fragmento = " ".join(trozo)
+                puntaje = difflib.SequenceMatcher(None, fragmento, nombre_norm).ratio()
+                if puntaje > mejor_puntaje:
+                    mejor_nombre, mejor_puntaje = nombre, puntaje
+
+    return mejor_nombre if mejor_puntaje >= umbral else None
 
 
 # --- Sitios web / "pestañas" que Venok puede abrir ---
