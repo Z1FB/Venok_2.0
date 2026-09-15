@@ -6,9 +6,9 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('ui', 'ui')],
-    # pyttsx3 carga su driver dinámicamente, así que PyInstaller no lo ve
-    # al analizar los imports y el .exe se quedaría sin voz rápida.
-    hiddenimports=['pyttsx3.drivers', 'pyttsx3.drivers.sapi5'],
+    # voz.py importa comtypes dentro de una función (para no cargarlo si se
+    # usa ElevenLabs); se declara aquí para asegurar que el .exe lo incluya.
+    hiddenimports=['comtypes', 'comtypes.client'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

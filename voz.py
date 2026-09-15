@@ -7,57 +7,94 @@ Soporta dos motores (ver MOTOR_VOZ en config.py):
                   para usar voces de biblioteca por API)
 
 Para el motor "sistema" hay dos caminos:
-  1. pyttsx3 con un motor que se crea UNA vez y se reutiliza (~0.07 s por
-     respuesta).
-  2. PowerShell/System.Speech como respaldo, por si pyttsx3 falla en alguna
-     máquina. Es el método original y funciona seguro, pero cuesta ~1.6 s
-     por respuesta porque lanza un proceso nuevo y carga .NET cada vez.
+  1. SAPI (el motor de voz de Windows) usado directamente, desde UN solo
+     hilo dedicado que vive toda la sesión. Evita lanzar un proceso nuevo
+     por cada respuesta.
+  2. PowerShell/System.Speech como respaldo, si SAPI no arranca en alguna
+     máquina. Funciona seguro, pero lanza un proceso y carga .NET cada vez.
+
+Por qué no pyttsx3: en Windows solo habla la PRIMERA vez que se reutiliza
+el motor; las llamadas siguientes regresan al instante sin sonar (su evento
+de fin de frase llega con completed=False). Por eso Venok saludaba al abrir
+y después se quedaba mudo.
+
+Por qué un hilo dedicado: los objetos COM de SAPI pertenecen al hilo que
+los creó, y en app.py cada respuesta sale de un hilo distinto.
 """
 
+import queue
 import threading
 
 from config import MOTOR_VOZ
 
-_motor = None
 _candado = threading.Lock()  # una sola locución a la vez: hablar encimado suena horrible
 
+_cola = queue.Queue()
+_hilo_sapi = None
+_sapi_listo = threading.Event()
+_sapi_disponible = True
 
-def _es_voz_en_espanol(voz_disponible) -> bool:
+
+def _es_voz_en_espanol(token) -> bool:
     # Ojo: no sirve buscar "es" dentro del id, porque la ruta del registro
     # de Windows trae "Voices" y hace match con CUALQUIER voz.
-    idiomas = getattr(voz_disponible, "languages", None) or []
-    if any(str(idioma).lower().lstrip("b'").startswith("es") for idioma in idiomas):
-        return True
-    return "_ES-" in (voz_disponible.id or "").upper()
+    return "_ES-" in (token.Id or "").upper()
 
 
-def _obtener_motor():
-    """Crea el motor de voz una sola vez y lo deja vivo en memoria."""
-    global _motor
-    if _motor is None:
-        import pyttsx3
+def _trabajador_sapi() -> None:
+    """Único hilo que toca SAPI en toda la sesión: lo crea y atiende la cola."""
+    global _sapi_disponible
+    try:
+        import comtypes
+        import comtypes.client
 
-        _motor = pyttsx3.init()
-        _motor.setProperty("rate", 190)  # un poco más ágil que el ritmo por defecto
-        for voz_disponible in _motor.getProperty("voices"):
-            if _es_voz_en_espanol(voz_disponible):
-                _motor.setProperty("voice", voz_disponible.id)
+        comtypes.CoInitialize()
+        voz = comtypes.client.CreateObject("SAPI.SpVoice")
+        for token in voz.GetVoices():
+            if _es_voz_en_espanol(token):
+                voz.Voice = token
                 break
-    return _motor
+        voz.Rate = 1  # un poco más ágil que el ritmo por defecto
+    except Exception as error:
+        print(f"[Venok] No pude iniciar la voz de Windows ({error}). Uso el método de respaldo.")
+        _sapi_disponible = False
+        _sapi_listo.set()
+        return
+
+    _sapi_listo.set()
+    while True:
+        texto, terminado, resultado = _cola.get()
+        try:
+            voz.Speak(texto, 0)  # 0 = síncrono: regresa cuando termina de hablar
+            resultado["ok"] = True
+        except Exception as error:
+            print(f"[Venok] La voz de Windows falló ({error}). Uso el método de respaldo.")
+            resultado["ok"] = False
+        finally:
+            terminado.set()
 
 
 def _hablar_rapido(texto: str) -> bool:
     """Regresa True si logró hablar; False para que se use el respaldo."""
-    global _motor
-    try:
-        motor = _obtener_motor()
-        motor.say(texto)
-        motor.runAndWait()
-        return True
-    except Exception as error:
-        print(f"[Venok] La voz rápida falló ({error}). Uso el método de respaldo.")
-        _motor = None  # que se vuelva a crear en el siguiente intento
+    global _hilo_sapi, _sapi_disponible
+    if _hilo_sapi is None:
+        _hilo_sapi = threading.Thread(target=_trabajador_sapi, daemon=True, name="voz-sapi")
+        _hilo_sapi.start()
+    _sapi_listo.wait(timeout=10)
+    if not _sapi_disponible:
         return False
+
+    terminado = threading.Event()
+    resultado = {}
+    _cola.put((texto, terminado, resultado))
+
+    # Holgado a propósito (a este ritmo se dicen ~15 caracteres por segundo):
+    # solo debe vencer si SAPI se colgó, no si la respuesta es larga.
+    if not terminado.wait(timeout=max(15, len(texto) * 0.2)):
+        print("[Venok] La voz de Windows no respondió a tiempo. Uso el método de respaldo.")
+        _sapi_disponible = False
+        return False
+    return resultado.get("ok", False)
 
 
 def _hablar_sistema(texto: str) -> None:

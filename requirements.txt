@@ -5,7 +5,7 @@ pygame
 pyautogui
 pywebview
 python-dotenv
-pyttsx3
+comtypes
 psutil
 send2trash
 beautifulsoup4
