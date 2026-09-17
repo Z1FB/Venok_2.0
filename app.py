@@ -216,7 +216,11 @@ class VenokAPI:
         return {
             "nombre_asistente": memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE,
             "tono": memoria.obtener_tono(),
+            "apariencia": memoria.obtener_apariencia(),
         }
+
+    def establecer_apariencia(self, apariencia):
+        memoria.establecer_apariencia(apariencia)
 
     def establecer_nombre_asistente(self, nombre: str):
         if nombre and nombre.strip():

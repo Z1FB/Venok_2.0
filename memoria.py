@@ -13,6 +13,7 @@ Memoria de Venok, en dos capas:
 
 import json
 import os
+import re
 
 _RUTA_MEMORIA = os.path.join(os.path.expanduser("~"), ".venok", "memoria.json")
 
@@ -101,6 +102,36 @@ def establecer_tono(tono: str) -> bool:
     _cargar()["tono"] = tono
     _guardar()
     return True
+
+
+# Apariencia de la interfaz: color principal, color de fondo y tamaño de letra.
+_PATRON_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+ESCALA_LETRA_MINIMA = 0.8
+ESCALA_LETRA_MAXIMA = 1.5
+
+
+def obtener_apariencia() -> dict:
+    return dict(_cargar().get("apariencia", {}))
+
+
+def establecer_apariencia(apariencia) -> None:
+    """Llega desde JavaScript y se vuelve a inyectar en el CSS de la ventana,
+    así que solo se guarda lo que tenga la forma exacta esperada."""
+    if not isinstance(apariencia, dict):
+        return
+
+    limpia = {}
+    for clave in ("principal", "fondo"):
+        color = apariencia.get(clave)
+        if isinstance(color, str) and _PATRON_COLOR.match(color):
+            limpia[clave] = color.lower()
+
+    escala = apariencia.get("escala")
+    if isinstance(escala, (int, float)) and not isinstance(escala, bool):
+        limpia["escala"] = round(min(ESCALA_LETRA_MAXIMA, max(ESCALA_LETRA_MINIMA, float(escala))), 2)
+
+    _cargar()["apariencia"] = limpia
+    _guardar()
 
 
 # ------------------------------------------------------------------

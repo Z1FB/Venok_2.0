@@ -8,7 +8,12 @@
 
   :root {
     --bg: #050814;
-    --panel-bg: rgba(8, 14, 28, 0.92);
+    --panel-rgb: 8, 14, 28;
+    --panel-bg: rgba(var(--panel-rgb), 0.92);
+    --bg-centro: #0a1530;
+    --on-accent: #05131f;
+    --escala-letra: 1;
+    --verde-estado: #35e07a;
     --core-1: #d6f3ff;
     --core-2: #4fc3f7;
     --core-3: #1a6fb8;
@@ -27,7 +32,7 @@
 
   body {
     margin: 0;
-    background: radial-gradient(ellipse at 60% 40%, #0a1530 0%, var(--bg) 70%);
+    background: radial-gradient(ellipse at 60% 40%, var(--bg-centro) 0%, var(--bg) 70%);
     color: var(--text-primary);
     font-family: 'Rajdhani', sans-serif;
     height: 100vh;
@@ -55,13 +60,13 @@
     width: 34px;
     height: 34px;
     border-radius: 8px;
-    background: linear-gradient(135deg, var(--accent), #1a6fb8);
+    background: linear-gradient(135deg, var(--accent), var(--core-3));
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'Orbitron', sans-serif;
     font-weight: 700;
-    color: #05131f;
+    color: var(--on-accent);
   }
   .logo-texto .titulo {
     font-family: 'Orbitron', sans-serif;
@@ -107,11 +112,11 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #35e07a;
+    background: var(--verde-estado);
     margin-right: 6px;
-    box-shadow: 0 0 8px #35e07a;
+    box-shadow: 0 0 8px var(--verde-estado);
   }
-  .estado-conexion .linea1 { color: #35e07a; font-weight: 700; letter-spacing: 2px; }
+  .estado-conexion .linea1 { color: var(--verde-estado); font-weight: 700; letter-spacing: 2px; }
 
   /* ---------------- CUERPO ---------------- */
   .cuerpo {
@@ -164,7 +169,7 @@
   }
 
   .actividad-item {
-    font-size: 13px;
+    font-size: calc(13px * var(--escala-letra));
     line-height: 1.4;
     padding: 8px 10px;
     border-radius: 8px;
@@ -173,7 +178,7 @@
   }
   .actividad-item .hora {
     color: var(--text-secondary);
-    font-size: 10px;
+    font-size: calc(10px * var(--escala-letra));
     letter-spacing: 1px;
     margin-right: 6px;
   }
@@ -238,7 +243,7 @@
     max-width: 85%;
     padding: 10px 13px;
     border-radius: 12px;
-    font-size: 14px;
+    font-size: calc(14px * var(--escala-letra));
     line-height: 1.4;
   }
   .mensaje.venok {
@@ -254,7 +259,7 @@
     border-bottom-right-radius: 2px;
   }
   .mensaje .remitente {
-    font-size: 10px;
+    font-size: calc(10px * var(--escala-letra));
     letter-spacing: 1px;
     color: var(--text-secondary);
     margin-bottom: 3px;
@@ -275,7 +280,7 @@
     padding: 10px 14px;
     color: var(--text-primary);
     font-family: 'Rajdhani', sans-serif;
-    font-size: 14px;
+    font-size: calc(14px * var(--escala-letra));
     outline: none;
   }
   .chat-input-fila input::placeholder { color: var(--text-secondary); }
@@ -284,7 +289,7 @@
     border: none;
     border-radius: 8px;
     width: 42px;
-    color: #05131f;
+    color: var(--on-accent);
     font-size: 16px;
     cursor: pointer;
   }
@@ -385,17 +390,23 @@
   }
 
   .estado-texto { position: absolute; bottom: 20px; text-align: center; }
-  .estado-texto .titulo { font-family: 'Orbitron', sans-serif; font-size: 22px; letter-spacing: 4px; }
+  .estado-texto .titulo {
+    font-family: 'Orbitron', sans-serif; letter-spacing: 4px;
+    font-size: calc(22px * var(--escala-letra));
+  }
   .estado-texto .subtitulo {
-    margin-top: 6px; font-size: 14px; letter-spacing: 2px; color: var(--text-secondary);
-    text-transform: uppercase; min-height: 18px;
+    margin-top: 6px; letter-spacing: 2px; color: var(--text-secondary); text-transform: uppercase;
+    font-size: calc(14px * var(--escala-letra));
+    min-height: calc(18px * var(--escala-letra));
   }
 
   .panel-lateral {
     position: absolute;
-    font-size: 11px;
+    font-size: calc(11px * var(--escala-letra));
     letter-spacing: 1px;
-    color: rgba(234, 242, 255, 0.55);
+    /* Antes era el texto principal al 55% de opacidad, que sobre fondos
+       personalizados podía volverse ilegible; la secundaria ya garantiza contraste. */
+    color: var(--text-secondary);
     text-transform: uppercase;
     line-height: 1.6;
   }
@@ -500,6 +511,99 @@
   }
   .tema-swatch:hover { transform: scale(1.08); }
   .tema-swatch.activo { border-color: var(--text-primary); }
+
+  /* Colores personalizados */
+  .colores-objetivo {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .colores-objetivo button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(var(--accent-rgb), 0.06);
+    border: 1px solid rgba(var(--accent-rgb), 0.25);
+    color: var(--text-secondary);
+    padding: 9px 6px;
+    border-radius: 8px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .colores-objetivo button.activo {
+    background: rgba(var(--accent-rgb), 0.2);
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+  .muestra-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid color-mix(in srgb, var(--text-primary) 45%, transparent);
+    flex-shrink: 0;
+  }
+  .tabla-colores {
+    display: grid;
+    grid-template-columns: repeat(13, 1fr);
+    gap: 4px;
+    margin-top: 10px;
+  }
+  .celda-color {
+    aspect-ratio: 1;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  .celda-color:hover { transform: scale(1.18); }
+  .celda-color.activo,
+  .celda-color:focus-visible {
+    outline: 2px solid var(--text-primary);
+    outline-offset: 1px;
+  }
+  .fila-acciones-color {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .fila-acciones-color input[type="color"] {
+    width: 42px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid rgba(var(--accent-rgb), 0.3);
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .fila-acciones-color .boton-secundario { margin-left: auto; }
+
+  /* Tamaño de letra */
+  .control-tamano {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .control-tamano .boton-secundario { min-width: 48px; }
+  .control-tamano .boton-secundario:disabled { opacity: 0.35; cursor: default; }
+  .valor-tamano {
+    min-width: 52px;
+    text-align: center;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .vista-previa-letra {
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-size: calc(14px * var(--escala-letra));
+  }
 
   .modal-config input[type="text"] {
     width: 100%;
@@ -612,7 +716,7 @@
     font-family: 'Orbitron', sans-serif;
     font-weight: 700;
     font-size: 28px;
-    color: #05131f;
+    color: var(--on-accent);
     opacity: 0;
     animation: apareceMarca 0.6s ease forwards;
     box-shadow: 0 0 40px 4px rgba(var(--accent-rgb), 0.4);
@@ -700,7 +804,7 @@
   </div>
   <div class="estado-conexion">
     <div><span class="punto"></span><span class="linea1">EN LÍNEA</span></div>
-    <div>v2.0.0</div>
+    <div>v2.1.0</div>
   </div>
 </div>
 
@@ -736,9 +840,9 @@
       <div class="rayos"></div>
 
       <div class="panel-lateral panel-izq">Reconocimiento de voz<br><span style="color:var(--accent)">Activo</span></div>
-      <div class="panel-lateral panel-izq2">Última acción<br><span id="ultimaAccion" style="color:#eaf2ff">En espera</span></div>
+      <div class="panel-lateral panel-izq2">Última acción<br><span id="ultimaAccion" style="color:var(--text-primary)">En espera</span></div>
       <div class="panel-lateral panel-der">Modelo de voz<br><span style="color:var(--accent)">Sistema</span></div>
-      <div class="panel-lateral panel-der2">Modo<br><span id="modoActualLabel" style="color:#eaf2ff">Voz</span></div>
+      <div class="panel-lateral panel-der2">Modo<br><span id="modoActualLabel" style="color:var(--text-primary)">Voz</span></div>
 
       <div class="ticks" id="ticks"></div>
       <div class="anillo-naranja"></div>
@@ -780,8 +884,37 @@
     <h2>Configuración</h2>
 
     <div class="seccion">
-      <h3>Tema de color</h3>
+      <h3>Temas rápidos</h3>
       <div class="temas-swatches" id="temasSwatches"></div>
+    </div>
+
+    <div class="seccion">
+      <h3>Colores personalizados</h3>
+      <div class="colores-objetivo" id="coloresObjetivo">
+        <button data-objetivo="principal" class="activo" aria-pressed="true" onclick="elegirObjetivoColor('principal')">
+          <span class="muestra-color" id="muestraPrincipal"></span>Letras y reactor
+        </button>
+        <button data-objetivo="fondo" aria-pressed="false" onclick="elegirObjetivoColor('fondo')">
+          <span class="muestra-color" id="muestraFondo"></span>Fondo
+        </button>
+      </div>
+      <div class="nota-guardado" id="notaObjetivo"></div>
+      <div class="tabla-colores" id="tablaColores" role="group" aria-label="Tabla de colores y tonos"></div>
+      <div class="fila-acciones-color">
+        <label for="colorLibre">Otro color:</label>
+        <input type="color" id="colorLibre" oninput="aplicarColorElegido(this.value, false)" onchange="aplicarColorElegido(this.value)" />
+        <button class="boton-secundario" onclick="restablecerColores()">Restablecer colores</button>
+      </div>
+    </div>
+
+    <div class="seccion">
+      <h3>Tamaño de letra</h3>
+      <div class="control-tamano">
+        <button class="boton-secundario" id="botonLetraMenor" onclick="cambiarTamanoLetra(-1)" aria-label="Letra más pequeña">A−</button>
+        <span class="valor-tamano" id="valorTamano">100%</span>
+        <button class="boton-secundario" id="botonLetraMayor" onclick="cambiarTamanoLetra(1)" aria-label="Letra más grande">A+</button>
+      </div>
+      <div class="vista-previa-letra">Así se verá el texto del chat y alrededor del reactor.</div>
     </div>
 
     <div class="seccion">
@@ -948,42 +1081,279 @@
   // ---------------- Configuración: tema, nombre, tono ----------------
   let nombreAsistenteActual = 'Venok';
 
+  // La apariencia se guarda en memoria.json vía Python. Ojo: el localStorage
+  // de la ventana NO sirve para esto, porque pywebview arranca en modo privado
+  // y lo borra al cerrar la app.
+  const APARIENCIA_ORIGINAL = { principal: '#4fc3f7', fondo: '#050814', escala: 1 };
+  let apariencia = { ...APARIENCIA_ORIGINAL };
+  let objetivoColor = 'principal';
+
   const TEMAS = {
-    azul:    { '--accent': '#4fc3f7', '--accent-rgb': '79, 195, 247',   '--core-1': '#d6f3ff', '--core-2': '#4fc3f7', '--core-3': '#1a6fb8', '--bg': '#050814' },
-    purpura: { '--accent': '#b06bff', '--accent-rgb': '176, 107, 255', '--core-1': '#f0e3ff', '--core-2': '#b06bff', '--core-3': '#5a1fa8', '--bg': '#0c0518' },
-    verde:   { '--accent': '#35e07a', '--accent-rgb': '53, 224, 122',  '--core-1': '#e3fff0', '--core-2': '#35e07a', '--core-3': '#0e6b3f', '--bg': '#04140f' },
-    rojo:    { '--accent': '#ff4d5e', '--accent-rgb': '255, 77, 94',   '--core-1': '#ffe3e3', '--core-2': '#ff4d5e', '--core-3': '#8a0f1c', '--bg': '#160505' },
+    azul:    { principal: '#4fc3f7', fondo: '#050814' },
+    purpura: { principal: '#b06bff', fondo: '#0c0518' },
+    verde:   { principal: '#35e07a', fondo: '#04140f' },
+    rojo:    { principal: '#ff4d5e', fondo: '#160505' },
   };
 
-  function aplicarTema(nombreTema) {
-    const variables = TEMAS[nombreTema];
-    if (!variables) return;
-    for (const [propiedad, valor] of Object.entries(variables)) {
-      document.documentElement.style.setProperty(propiedad, valor);
-    }
-    try { localStorage.setItem('venok_tema', nombreTema); } catch (e) { /* almacenamiento no disponible */ }
-    document.querySelectorAll('.tema-swatch').forEach((el) => {
-      el.classList.toggle('activo', el.dataset.tema === nombreTema);
-    });
+  const ESCALAS_LETRA = [0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5];
+
+  // --- Matemática de color ---
+  function hexARgb(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   }
 
+  function rgbAHex(rgb) {
+    return '#' + rgb.map((v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, '0')).join('');
+  }
+
+  function mezclar(hexA, hexB, proporcion) {
+    const a = hexARgb(hexA);
+    const b = hexARgb(hexB);
+    return rgbAHex(a.map((v, i) => v + (b[i] - v) * proporcion));
+  }
+
+  function luminancia(hex) {
+    // Luminancia relativa (WCAG): la base para decidir si un fondo es oscuro.
+    const [r, g, b] = hexARgb(hex).map((v) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  function hslAHex(h, s, l) {
+    const sat = s / 100;
+    const lum = l / 100;
+    const a = sat * Math.min(lum, 1 - lum);
+    const canal = (n) => {
+      const k = (n + h / 30) % 12;
+      return lum - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    };
+    return rgbAHex([canal(0) * 255, canal(8) * 255, canal(4) * 255]);
+  }
+
+  function hexAHsl(hex) {
+    const [r, g, b] = hexARgb(hex).map((v) => v / 255);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    let h = 0;
+    let s = 0;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return [h, s * 100, l * 100];
+  }
+
+  function esFondoOscuro(hex) {
+    // El texto claro contrasta más que el oscuro por debajo de este punto.
+    return luminancia(hex) < 0.179;
+  }
+
+  function contrasteEntre(a, b) {
+    const [claro, oscuro] = [luminancia(a), luminancia(b)].sort((x, y) => y - x);
+    return (claro + 0.05) / (oscuro + 0.05);
+  }
+
+  function peorContraste(texto, fondos) {
+    return Math.min(...fondos.map((f) => contrasteEntre(texto, f)));
+  }
+
+  function letraLegible(principal, extremo, fondos, objetivo, desdePaso = 12) {
+    // Parte del color principal y lo va aclarando (u oscureciendo) solo lo
+    // necesario para llegar al contraste pedido: así las letras conservan
+    // todo el color posible sin dejar de leerse.
+    for (let paso = desdePaso; paso < 20; paso++) {
+      const candidato = mezclar(principal, extremo, paso * 0.05);
+      if (peorContraste(candidato, fondos) >= objetivo) return candidato;
+    }
+    return extremo;
+  }
+
+  function letraAtenuada(texto, fondo, fondos, objetivo) {
+    // La letra secundaria es la principal desvanecida hacia el fondo, tanto
+    // como se pueda sin bajar del contraste pedido.
+    let elegida = texto;
+    for (let paso = 1; paso <= 9; paso++) {
+      const candidata = mezclar(texto, fondo, paso * 0.05);
+      if (peorContraste(candidata, fondos) < objetivo) break;
+      elegida = candidata;
+    }
+    return elegida;
+  }
+
+  function letraSobre(color) {
+    // Para texto sobre botones del color principal. Se prefiere el azul casi
+    // negro del diseño original, salvo que no alcance para leerse.
+    const oscura = contrasteEntre('#05131f', color) >= 4.5 ? '#05131f' : '#000000';
+    return contrasteEntre('#ffffff', color) > contrasteEntre(oscura, color) ? '#ffffff' : oscura;
+  }
+
+  function calcularPaleta(principal, fondo) {
+    const extremo = esFondoOscuro(fondo) ? '#ffffff' : '#000000';
+    // El panel y el centro del reactor se aclaran un poco para dar
+    // profundidad, pero eso le quita contraste a las letras. En fondos de
+    // tono medio no sobra margen, así que ahí el aclarado se apaga.
+    const margen = Math.min(1, Math.max(0, (contrasteEntre(extremo, fondo) - 4.6) / 2.4));
+    const panel = mezclar(fondo, extremo, 0.03 * margen);
+    const centro = mezclar(fondo, extremo, 0.05 * margen);
+    // Las letras se miden contra todo lo que pueden tener detrás.
+    const fondos = [fondo, panel, centro];
+    const textoPrincipal = letraLegible(principal, extremo, fondos, 7);
+    const [h, s, l] = hexAHsl(principal);
+    return {
+      '--accent': principal,
+      '--accent-rgb': hexARgb(principal).join(', '),
+      '--core-1': mezclar(principal, '#ffffff', 0.75),
+      '--core-2': principal,
+      // Se oscurece en HSL y no mezclando con negro, que apagaría el color.
+      '--core-3': hslAHex(h, s, Math.max(8, l * 0.55)),
+      '--on-accent': letraSobre(principal),
+      '--bg': fondo,
+      '--bg-centro': centro,
+      '--panel-rgb': hexARgb(panel).join(', '),
+      '--text-primary': textoPrincipal,
+      '--text-secondary': letraAtenuada(textoPrincipal, fondo, fondos, 4.5),
+      // El verde de "EN LÍNEA" no cambia de tono, pero se oscurece lo justo
+      // si el fondo es claro (desde el paso 0: en fondos oscuros queda igual).
+      '--verde-estado': letraLegible('#35e07a', extremo, fondos, 4.5, 0),
+    };
+  }
+
+  // --- Aplicar y guardar ---
+  function aplicarApariencia(nueva) {
+    apariencia = { ...apariencia, ...nueva };
+    const estilo = document.documentElement.style;
+    for (const [propiedad, valor] of Object.entries(calcularPaleta(apariencia.principal, apariencia.fondo))) {
+      estilo.setProperty(propiedad, valor);
+    }
+    estilo.setProperty('--escala-letra', apariencia.escala);
+    actualizarControlesApariencia();
+  }
+
+  function guardarApariencia() {
+    if (window.pywebview) {
+      window.pywebview.api.establecer_apariencia(apariencia);
+    }
+  }
+
+  function mismoColor(a, b) {
+    return (a || '').toLowerCase() === (b || '').toLowerCase();
+  }
+
+  function actualizarControlesApariencia() {
+    document.getElementById('muestraPrincipal').style.background = apariencia.principal;
+    document.getElementById('muestraFondo').style.background = apariencia.fondo;
+
+    document.querySelectorAll('#coloresObjetivo button').forEach((boton) => {
+      const activo = boton.dataset.objetivo === objetivoColor;
+      boton.classList.toggle('activo', activo);
+      boton.setAttribute('aria-pressed', String(activo));
+    });
+    document.getElementById('notaObjetivo').textContent = objetivoColor === 'principal'
+      ? 'Cambia las letras, el reactor y los detalles.'
+      : 'Cambia el color detrás de todo. Las letras se ajustan solas para seguir leyéndose.';
+
+    const colorActual = apariencia[objetivoColor];
+    document.getElementById('colorLibre').value = colorActual;
+    document.querySelectorAll('.celda-color').forEach((celda) => {
+      celda.classList.toggle('activo', mismoColor(celda.dataset.color, colorActual));
+    });
+    document.querySelectorAll('.tema-swatch').forEach((swatch) => {
+      const tema = TEMAS[swatch.dataset.tema];
+      swatch.classList.toggle(
+        'activo',
+        mismoColor(tema.principal, apariencia.principal) && mismoColor(tema.fondo, apariencia.fondo)
+      );
+    });
+
+    const indice = indiceEscalaCercana(apariencia.escala);
+    document.getElementById('valorTamano').textContent = `${Math.round(ESCALAS_LETRA[indice] * 100)}%`;
+    document.getElementById('botonLetraMenor').disabled = indice === 0;
+    document.getElementById('botonLetraMayor').disabled = indice === ESCALAS_LETRA.length - 1;
+  }
+
+  // --- Controles ---
   function construirSwatches() {
     const contenedor = document.getElementById('temasSwatches');
-    Object.entries(TEMAS).forEach(([nombreTema, variables]) => {
+    Object.entries(TEMAS).forEach(([nombreTema, colores]) => {
       const swatch = document.createElement('div');
       swatch.className = 'tema-swatch';
       swatch.dataset.tema = nombreTema;
-      swatch.style.background = variables['--core-2'];
+      swatch.style.background = colores.principal;
       swatch.title = nombreTema;
-      swatch.onclick = () => aplicarTema(nombreTema);
+      swatch.onclick = () => {
+        aplicarApariencia({ principal: colores.principal, fondo: colores.fondo });
+        guardarApariencia();
+      };
       contenedor.appendChild(swatch);
     });
   }
 
-  function cargarTemaGuardado() {
-    let temaGuardado = 'azul';
-    try { temaGuardado = localStorage.getItem('venok_tema') || 'azul'; } catch (e) { /* almacenamiento no disponible */ }
-    aplicarTema(temaGuardado);
+  function construirTablaColores() {
+    const MATICES = ['Rojo', 'Naranja', 'Amarillo', 'Lima', 'Verde', 'Menta',
+                     'Cian', 'Celeste', 'Azul', 'Violeta', 'Magenta', 'Rosa'];
+    // [saturación, luminosidad] de cada fila, de claro a oscuro. La última
+    // fila es muy oscura y poco saturada: la que mejor queda como fondo.
+    const TONOS = [[90, 85, 'muy claro'], [88, 72, 'claro'], [85, 60, 'medio'],
+                   [80, 48, 'intenso'], [75, 36, 'profundo'], [65, 22, 'oscuro'],
+                   [45, 10, 'muy oscuro']];
+    const GRISES = [100, 82, 64, 46, 28, 14, 4];
+
+    const tabla = document.getElementById('tablaColores');
+    TONOS.forEach(([saturacion, luz, nombreTono], fila) => {
+      MATICES.forEach((nombreMatiz, columna) => {
+        agregarCelda(tabla, hslAHex(columna * 30, saturacion, luz), `${nombreMatiz} ${nombreTono}`);
+      });
+      agregarCelda(tabla, hslAHex(0, 0, GRISES[fila]), `Gris ${GRISES[fila]}%`);
+    });
+  }
+
+  function agregarCelda(tabla, color, nombre) {
+    const celda = document.createElement('button');
+    celda.className = 'celda-color';
+    celda.style.background = color;
+    celda.dataset.color = color;
+    celda.title = `${nombre} (${color})`;
+    celda.setAttribute('aria-label', nombre);
+    celda.onclick = () => aplicarColorElegido(color);
+    tabla.appendChild(celda);
+  }
+
+  function elegirObjetivoColor(objetivo) {
+    objetivoColor = objetivo;
+    actualizarControlesApariencia();
+  }
+
+  function aplicarColorElegido(color, guardar = true) {
+    aplicarApariencia({ [objetivoColor]: color });
+    if (guardar) guardarApariencia();
+  }
+
+  function restablecerColores() {
+    aplicarApariencia({ principal: APARIENCIA_ORIGINAL.principal, fondo: APARIENCIA_ORIGINAL.fondo });
+    guardarApariencia();
+  }
+
+  function indiceEscalaCercana(escala) {
+    let mejor = 0;
+    ESCALAS_LETRA.forEach((valor, i) => {
+      if (Math.abs(valor - escala) < Math.abs(ESCALAS_LETRA[mejor] - escala)) mejor = i;
+    });
+    return mejor;
+  }
+
+  function cambiarTamanoLetra(paso) {
+    const indice = indiceEscalaCercana(apariencia.escala) + paso;
+    const acotado = Math.max(0, Math.min(ESCALAS_LETRA.length - 1, indice));
+    aplicarApariencia({ escala: ESCALAS_LETRA[acotado] });
+    guardarApariencia();
   }
 
   function aplicarNombreAsistente(nombre) {
@@ -999,6 +1369,7 @@
     window.pywebview.api.obtener_configuracion().then((config) => {
       aplicarNombreAsistente(config.nombre_asistente);
       seleccionarTono(config.tono, false);
+      aplicarApariencia({ ...APARIENCIA_ORIGINAL, ...(config.apariencia || {}) });
     });
   }
 
@@ -1099,8 +1470,9 @@
   }
 
   construirSwatches();
+  construirTablaColores();
   construirHerramientas();
-  cargarTemaGuardado();
+  aplicarApariencia(APARIENCIA_ORIGINAL);
   window.addEventListener('pywebviewready', actualizarConfiguracionDesdeBackend);
   actualizarConfiguracionDesdeBackend();
 

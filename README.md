@@ -186,9 +186,19 @@ armas desde otro sistema operativo).
 Venok responde con un tono configurable (formal / amigable / gracioso,
 ver `personalidad.py`), recuerda tu nombre y ciudad (`memoria.py`), y
 puedes cambiarle su propio nombre y palabra de activación en cualquier
-momento diciendo "llámate [nombre]". También hay un panel de
-Configuración en la interfaz para cambiar el tema de color, el nombre y
-el tono sin usar la voz.
+momento diciendo "llámate [nombre]".
+
+El panel de **Configuración** de la interfaz permite, sin usar la voz:
+- Cambiar el nombre y el tono.
+- Elegir un tema rápido, o colores propios desde una tabla de 91 colores y
+  tonos (o cualquier otro con el selector de Windows): uno para las letras,
+  el reactor y los detalles, y otro para el fondo. Las letras se aclaran u
+  oscurecen solas para seguir leyéndose con cualquier combinación.
+- Agrandar o achicar la letra del chat y de los textos del reactor
+  (de 80% a 150%).
+
+Los colores y el tamaño de letra se guardan en `memoria.json` y se
+conservan al cerrar la app.
 
 ## Accesibilidad
 
