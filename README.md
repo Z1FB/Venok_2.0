@@ -15,8 +15,11 @@ para el historial de decisiones de diseño.
   así que entiende frases naturales aunque no coincidan con ningún comando
   ("recuérdame en media hora sacar la ropa", "abre el navegador y busca
   recetas de pizza", "quiero escuchar música de los 80").
-- **Conversación con contexto**: mantiene el hilo de los últimos turnos, así
-  que funcionan las preguntas de seguimiento ("¿y de los perros?").
+- **Conversación con memoria**: mantiene el hilo de los últimos seis turnos
+  —incluidos los que responde con sus propias reglas—, así que funcionan los
+  seguimientos ("otro", "¿y en Madrid?", "¿por qué?", "otra vez"). La
+  conversación se guarda en disco: cerrar Venok no corta la charla, aunque
+  empieza de cero si pasaron más de 6 horas desde lo último que se habló.
 - **Memoria y personalidad**: recuerda tu nombre y ciudad entre sesiones;
   puedes cambiarle su propio nombre y su tono (formal / amigable / gracioso).
 - **Imágenes**: adjunta una foto desde el chat con el botón 📎 y Venok la
@@ -26,7 +29,10 @@ para el historial de decisiones de diseño.
 - **Información**: clima, hora en cualquier país, noticias, definiciones
   (Wikipedia), conversión de monedas y de unidades, calculadora.
 - **Traductor**: "traduce buenos días al inglés", "¿cómo se dice niño en
-  francés?" — 10 idiomas.
+  francés?" — 11 idiomas.
+- **YouTube**: "quiero escuchar música pop" busca el video, dice cuál
+  encontró y lo reproduce después de que confirmes — no se queda en la
+  página de resultados.
 - **Sistema**: apps, sitios web y juegos (abrir/cerrar/buscar), volumen,
   bloquear pantalla, vaciar papelera, multimedia, capturas de pantalla,
   inicio automático con Windows.
@@ -41,6 +47,10 @@ para el historial de decisiones de diseño.
 - **Correo** (opcional): revisar la bandeja de entrada y enviar mensajes.
 - **Accesibilidad**: control de mouse y teclado por voz (mover, clic,
   escribir, teclas, scroll).
+- **Se presenta solo**: "Venok, haz lo tuyo" — se hace el desentendido, y
+  cuando le insistes cuenta en voz alta quién es y todo lo que sabe hacer,
+  durante alrededor de un minuto. Pensado para salir del paso en una
+  exposición; no necesita internet.
 - **Permisos**: cualquier acción sensible (cerrar apps, vaciar la
   papelera, eliminar archivos, enviar correos, abrir redes sociales,
   activar el inicio automático) pide confirmación antes de ejecutarse —
@@ -96,6 +106,7 @@ sin esa función específica:
 | `ELEVENLABS_API_KEY` | Voz más realista (requiere plan pagado, ~$5 USD/mes)     | https://elevenlabs.io |
 | `WOLFRAM_APP_ID`     | Respuestas de ciencia/matemáticas/datos (gratis)         | https://developer.wolframalpha.com |
 | `ANTHROPIC_API_KEY`  | El agente de IA: entender frases naturales, analizar imágenes, investigar, traducir y conversar (costo mínimo por uso) | https://console.anthropic.com/settings/keys |
+| `YOUTUBE_API_KEY`    | Buscar y reproducir videos de YouTube (gratis: la cuota diaria da para unas 100 búsquedas). Sin ella, Venok abre la página de resultados como antes | https://console.cloud.google.com (activa "YouTube Data API v3") |
 | `CORREO_USUARIO` y `CORREO_PASSWORD` | Revisar y enviar correos. La contraseña es una "contraseña de aplicación", no la de tu cuenta | https://myaccount.google.com/apppasswords |
 
 Por defecto (`MOTOR_VOZ=sistema`) Venok habla con las voces que ya trae
@@ -116,7 +127,9 @@ python app.py
 ```
 
 Abre una ventana con la interfaz visual (núcleo animado tipo HUD, panel
-de chat, y animación de arranque). Di "Oye Venok" (o el nombre que le
+de chat, y animación de arranque: un punto de luz que crece, los anillos
+que se forman a su alrededor y el nombre apareciendo justo cuando se
+escucha el saludo, en unos 3 segundos). Di "Oye Venok" (o el nombre que le
 hayas puesto) antes de cada comando en modo voz.
 
 *(`python main.py` corre el mismo cerebro sin interfaz, solo por consola —
@@ -127,14 +140,17 @@ hayas puesto) antes de cada comando en modo voz.
 ```
 Oye Venok, hola
 Me llamo Ana
-Clima de Madrid
+Cuéntame un chiste  ->  otro  ->  ese estuvo mejor
+Clima de Madrid  ->  ¿y en Tokio?
 Recuérdame en media hora sacar la ropa
 Ponme un recordatorio para el viernes a las 3
 Cómo está mi computadora
 Traduce buenos días al inglés
 Investiga sobre agujeros negros
-Quiero escuchar música de los 80
+Quiero escuchar música de los 80  ->  sí
+Sube el volumen  ->  otra vez
 Abre el navegador y busca recetas de pizza
+Venok, haz lo tuyo
 Mueve el mouse a la derecha / Haz clic / Escribe hola / Presiona enter
 Llámate Jarvis
 Modo gracioso
@@ -231,6 +247,13 @@ pantalla, se detiene cualquier acción automática en curso.
   gracias al respaldo de voz del sistema, y las funciones que no
   necesitan internet (mouse/teclado, calculadora, apps locales) siguen
   funcionando igual.
+- Si Venok te hace una pregunta ("¿lo reproduzco?", "¿confirmo?"), contéstala
+  antes de decir otra cosa: mientras haya una confirmación pendiente, la
+  siguiente frase se toma como la respuesta.
+- "Venok, haz lo tuyo" sirve de red de seguridad si te quedas en blanco:
+  se presenta solo durante un minuto, sin necesidad de internet.
+- Deja "adiós" para el final: al despedirse borra la memoria de la
+  conversación (el nombre, la ciudad y los colores sí se conservan).
 - No dejes visible ninguna terminal ni el archivo `.env` mientras proyectas.
 
 ## Estructura del proyecto
@@ -243,6 +266,8 @@ venok/
 ├── voz.py                    # Texto a voz (motor del sistema o ElevenLabs)
 ├── acciones.py                # Abrir sitios, apps y juegos + emparejado difuso
 ├── capacidades.py             # Clima, noticias, hora, definiciones, traductor, Wolfram
+├── youtube.py                 # Buscar y reproducir videos (YouTube Data API v3)
+├── presentacion.py            # "Haz lo tuyo": Venok se presenta solo
 ├── control_mouse_teclado.py  # Control de mouse/teclado por voz
 ├── personalidad.py           # Frases y tonos (formal/amigable/gracioso)
 ├── memoria.py                 # Memoria persistente y de sesión
@@ -253,7 +278,7 @@ venok/
 ├── recordatorios.py             # Recordatorios con fechas en lenguaje natural
 ├── inicio_automatico.py         # Inicio automático con Windows (registro)
 ├── correo.py                     # Revisar y enviar correos (IMAP/SMTP)
-├── claude_api.py                 # Cliente compartido de Claude + historial
+├── claude_api.py                 # Cliente compartido de Claude + historial de la charla
 ├── agente.py                      # Herramientas que la IA puede usar
 ├── imagen_ia.py                   # Análisis de imágenes adjuntadas
 ├── navegador_ia.py               # Investigar/resumir páginas con IA

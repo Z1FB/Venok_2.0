@@ -134,7 +134,7 @@
     border-right: 1px solid rgba(var(--accent-rgb), 0.15);
     display: flex;
     flex-direction: column;
-    transition: margin-left 0.3s ease;
+    transition: margin-left 0.55s ease, opacity 0.7s ease;
   }
   .panel-chat.oculto { margin-left: -360px; }
 
@@ -146,7 +146,7 @@
     border-left: 1px solid rgba(var(--accent-rgb), 0.15);
     display: flex;
     flex-direction: column;
-    transition: margin-right 0.3s ease;
+    transition: margin-right 0.3s ease, opacity 0.7s ease;
   }
   .panel-actividad.oculto { margin-right: -300px; }
 
@@ -688,72 +688,81 @@
   }
 
   /* ---------------- ANIMACIÓN DE INICIO ---------------- */
-  .pantalla-arranque {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    transition: opacity 0.6s ease, visibility 0.6s ease;
-  }
-  .pantalla-arranque.oculto {
+  /* Antes esto era una pantalla aparte que tapaba la interfaz y repetía el
+     logo. Ahora la secuencia se hace sobre el reactor REAL (el mismo núcleo
+     y los mismos anillos que se quedan después), así que al terminar no hay
+     ningún salto visual: punto de luz -> crece -> se forman los anillos ->
+     aparece "VENOK" -> entra el resto de la interfaz. Dura ~3.1 s.
+
+     Los anillos se encienden con TRANSICIONES, no con @keyframes, a
+     propósito: el anillo azul y los ticks ya tienen su animación de giro, y
+     declararles una animación nueva la reiniciaría al terminar el arranque
+     (se vería un salto en la rotación). */
+  body.arrancando .top-bar,
+  body.arrancando .panel-chat,
+  body.arrancando .panel-actividad,
+  body.arrancando .dock,
+  body.arrancando .panel-lateral,
+  body.arrancando .rayos,
+  body.arrancando .estado-texto .subtitulo {
     opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
   }
-  .arranque-marca {
-    width: 64px;
-    height: 64px;
-    border-radius: 16px;
-    background: linear-gradient(135deg, var(--accent), var(--core-3));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 700;
-    font-size: 28px;
-    color: var(--on-accent);
-    opacity: 0;
-    animation: apareceMarca 0.6s ease forwards;
-    box-shadow: 0 0 40px 4px rgba(var(--accent-rgb), 0.4);
+  .top-bar, .dock, .panel-lateral, .rayos, .estado-texto .subtitulo {
+    transition: opacity 0.7s ease;
   }
-  .arranque-titulo {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 26px;
-    letter-spacing: 7px;
-    opacity: 0;
-    animation: apareceMarca 0.6s ease forwards;
-    animation-delay: 0.25s;
+  /* El panel de chat ocupa 360 px a la izquierda, así que si se queda en su
+     sitio el punto de luz nace descentrado. Durante el arranque se pliega
+     con el mismo margen negativo que usa su botón de cerrar (.oculto), y al
+     final entra deslizándose mientras el reactor se acomoda en su lugar. */
+  body.arrancando .panel-chat { margin-left: -360px; }
+
+  /* Pasos 1 y 2: el punto de luz que crece. Es la única pieza con @keyframes
+     porque "respirar" también anima transform y una transición no podría
+     ganarle. Termina en scale(1), que es justo donde empieza "respirar",
+     así que el relevo entre las dos no se nota. */
+  body.arrancando .nucleo {
+    animation: nacerNucleo 1.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
-  .registro-arranque {
-    margin-top: 10px;
-    min-height: 100px;
-    text-align: center;
+  /* El tema guardado (colores del usuario) llega desde Python unos 300 ms
+     después de cargar la página. Hasta que llegue, la animación se queda
+     congelada en su primer fotograma —el núcleo aún es invisible— para que
+     el cambio de colores nunca se vea a mitad de la intro. */
+  body.esperando-tema .nucleo { animation-play-state: paused; }
+  @keyframes nacerNucleo {
+    0%   { transform: scale(0.05); opacity: 0;
+           box-shadow: 0 0 6px 2px rgba(var(--accent-rgb), 0.9); }
+    16%  { transform: scale(0.08); opacity: 1;
+           box-shadow: 0 0 14px 4px rgba(var(--accent-rgb), 0.95); }
+    100% { transform: scale(1); opacity: 1;
+           box-shadow: 0 0 40px 10px rgba(var(--accent-rgb), 0.5),
+                       0 0 90px 30px rgba(var(--accent-rgb), 0.25); }
   }
-  .linea-arranque {
-    font-size: 13px;
-    letter-spacing: 1px;
-    color: var(--text-secondary);
-    opacity: 0;
-    transform: translateY(6px);
-    animation: apareceLinea 0.5s ease forwards;
+
+  /* Paso 3: se forman los anillos */
+  .anillo-azul, .ticks {
+    transition: opacity 0.6s ease, filter 0.6s ease;
   }
-  .linea-arranque.lista { color: var(--accent); }
-  @keyframes apareceMarca {
-    from { opacity: 0; transform: scale(0.85); }
-    to { opacity: 1; transform: scale(1); }
+  .anillo-naranja {
+    transition: opacity 0.6s ease, filter 0.6s ease, transform 0.6s ease;
   }
-  @keyframes apareceLinea {
-    from { opacity: 0; transform: translateY(6px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .arranque-marca, .arranque-titulo, .linea-arranque { animation: none; opacity: 1; transform: none; }
-  }
+  body.arrancando .anillo-naranja { opacity: 0; filter: blur(7px); transform: scale(1.3); }
+  body.arrancando .anillo-azul,
+  body.arrancando .ticks { opacity: 0; filter: blur(7px); }
+  body.arrancando.paso-anillos .anillo-naranja { opacity: 1; filter: none; transform: scale(1); }
+  body.arrancando.paso-anillos .anillo-azul { opacity: 1; filter: none; transition-delay: 0.25s; }
+  body.arrancando.paso-anillos .ticks { opacity: 1; filter: none; transition-delay: 0.45s; }
+
+  /* Paso 4: aparece el nombre (y en ese momento suena el saludo) */
+  .estado-texto .titulo { transition: opacity 0.5s ease, letter-spacing 0.5s ease; }
+  body.arrancando .estado-texto .titulo { opacity: 0; letter-spacing: 16px; }
+  body.arrancando.paso-titulo .estado-texto .titulo { opacity: 1; letter-spacing: 4px; }
+
+  /* Nota sobre "menos movimiento" (prefers-reduced-motion): este equipo lo
+     reporta activo porque Windows tiene apagados los efectos de animación,
+     y con la excepción puesta la intro se veía como un simple fundido, sin
+     el punto que crece. Como el reactor ya gira y respira todo el tiempo
+     sin atender esa preferencia, se dejó la secuencia completa para todos:
+     ser estricto solo aquí era incoherente con el resto de la interfaz. */
 
   /* Estados del núcleo */
   .stage[data-estado="escuchando"] .nucleo {
@@ -775,18 +784,7 @@
   }
 </style>
 </head>
-<body>
-
-<div class="pantalla-arranque" id="pantallaArranque">
-  <div class="arranque-marca">V</div>
-  <div class="arranque-titulo nombre-asistente">VENOK</div>
-  <div class="registro-arranque" id="registroArranque">
-    <div class="linea-arranque" style="animation-delay:0.5s">Inicializando núcleo…</div>
-    <div class="linea-arranque" style="animation-delay:1.1s">Cargando reconocimiento de voz…</div>
-    <div class="linea-arranque" style="animation-delay:1.7s">Sincronizando personalidad…</div>
-    <div class="linea-arranque lista" style="animation-delay:2.3s">Sistemas listos.</div>
-  </div>
-</div>
+<body class="arrancando esperando-tema">
 
 <div class="top-bar">
   <div class="logo">
@@ -804,7 +802,7 @@
   </div>
   <div class="estado-conexion">
     <div><span class="punto"></span><span class="linea1">EN LÍNEA</span></div>
-    <div>v2.1.0</div>
+    <div>v2.2.0</div>
   </div>
 </div>
 
@@ -1370,6 +1368,7 @@
       aplicarNombreAsistente(config.nombre_asistente);
       seleccionarTono(config.tono, false);
       aplicarApariencia({ ...APARIENCIA_ORIGINAL, ...(config.apariencia || {}) });
+      window.dispatchEvent(new Event('venok:tema-aplicado'));
     });
   }
 
@@ -1477,12 +1476,49 @@
   actualizarConfiguracionDesdeBackend();
 
   // ---------------- Animación de inicio ----------------
+  // Tiempos en milisegundos desde que carga la página. El saludo hablado se
+  // dispara desde aquí (paso "titulo") avisándole a Python, en vez de que
+  // Python adivine con un sleep fijo: así el audio entra justo cuando
+  // aparece el nombre, sin importar si la ventana tardó más o menos en abrir.
+  const PASOS_ARRANQUE = { anillos: 1000, titulo: 1850, interfaz: 2400, esperaMaximaTema: 700 };
+
+  function avisarArranqueListo() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.animacion_lista) {
+      window.pywebview.api.animacion_lista();
+    } else {
+      // Todavía no existe el puente con Python; en cuanto exista, avisamos.
+      window.addEventListener('pywebviewready', avisarArranqueListo, { once: true });
+    }
+  }
+
   (function jugarAnimacionArranque() {
-    const pantalla = document.getElementById('pantallaArranque');
-    const prefiereMenosMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const duracion = prefiereMenosMovimiento ? 400 : 2900;
-    setTimeout(() => { pantalla.classList.add('oculto'); }, duracion);
+    const cuerpo = document.body;
+    // La cuenta empieza cuando se cumplen las dos condiciones: que el tema
+    // guardado del usuario ya esté aplicado (si no, sus colores entrarían a
+    // mitad de la intro) y que la página haya dibujado al menos un
+    // fotograma (la hoja de estilos trae una fuente de Google y puede
+    // tardar; los tiempos de abajo deben correr a la par de la animación
+    // CSS del núcleo, que arranca en ese primer dibujado).
+    const empezar = () => {
+      cuerpo.classList.remove('esperando-tema');
+      setTimeout(() => cuerpo.classList.add('paso-anillos'), PASOS_ARRANQUE.anillos);
+      setTimeout(() => {
+        cuerpo.classList.add('paso-titulo');
+        avisarArranqueListo();
+      }, PASOS_ARRANQUE.titulo);
+      setTimeout(() => cuerpo.classList.remove('arrancando'), PASOS_ARRANQUE.interfaz);
+    };
+
+    let yaEmpezo = false;
+    const arrancarUnaVez = () => {
+      if (yaEmpezo) return;
+      yaEmpezo = true;
+      requestAnimationFrame(empezar);
+    };
+    window.addEventListener('venok:tema-aplicado', arrancarUnaVez, { once: true });
+    setTimeout(arrancarUnaVez, PASOS_ARRANQUE.esperaMaximaTema);
   })();
+
 </script>
 
 </body>

@@ -9,8 +9,11 @@ Memoria de Venok, en dos capas:
 - Memoria de sesión: contexto de la conversación actual (última ciudad
   consultada, última app abierta) para permitir seguimientos como "ciérrala"
   sin repetir el nombre. Vive solo en memoria RAM, se pierde al cerrar Venok.
+- Conversación reciente: los últimos turnos de lo que se habló, guardados
+  junto al resto para que cerrar Venok no borre el hilo de la charla.
 """
 
+import datetime
 import json
 import os
 import re
@@ -65,12 +68,87 @@ def establecer_ciudad_favorita(ciudad: str) -> None:
 
 
 def olvidar_todo() -> None:
-    """Borra solo los datos DEL USUARIO (nombre, ciudad). El nombre que le
-    pusiste a Venok y el tono elegido son configuración del asistente, no
-    datos del usuario, así que no se tocan aquí."""
+    """Borra los datos DEL USUARIO: su nombre, su ciudad y la conversación
+    guardada. El nombre que le pusiste a Venok y el tono elegido son
+    configuración del asistente, no datos del usuario, así que no se tocan."""
     datos = _cargar()
     datos.pop("nombre", None)
     datos.pop("ciudad_favorita", None)
+    datos.pop("conversacion", None)
+    datos.pop("conversacion_fecha", None)
+    _guardar()
+
+
+# ------------------------------------------------------------------
+# Conversación reciente (sobrevive a cerrar Venok)
+# ------------------------------------------------------------------
+MAXIMO_MENSAJES_GUARDADOS = 12
+
+# Un amigo retoma la charla de hace un rato, no la de hace tres días: si
+# pasaron más de estas horas desde el último mensaje, se empieza de cero.
+# Sin esto, abrir Venok por la mañana y decir "otro" seguiría contestando
+# sobre el chiste de anoche.
+HORAS_PARA_OLVIDAR_CONVERSACION = 6
+
+_FORMATO_FECHA = "%Y-%m-%dT%H:%M:%S"
+
+
+def _conversacion_caducada(datos: dict) -> bool:
+    marca = datos.get("conversacion_fecha")
+    if not isinstance(marca, str):
+        return True
+    try:
+        ultima = datetime.datetime.strptime(marca, _FORMATO_FECHA)
+    except ValueError:
+        return True
+    transcurrido = datetime.datetime.now() - ultima
+    return transcurrido > datetime.timedelta(hours=HORAS_PARA_OLVIDAR_CONVERSACION)
+
+
+def obtener_conversacion() -> list:
+    """Los últimos turnos de la charla, listos para mandarlos a la API.
+
+    Se revisa la forma de lo que hay en el disco en vez de confiar en él: el
+    archivo es de texto y se puede editar a mano, y esto se envía tal cual a
+    la API, que exige turnos alternos empezando por el usuario.
+    """
+    datos = _cargar()
+    guardada = datos.get("conversacion", [])
+    if not isinstance(guardada, list) or _conversacion_caducada(datos):
+        return []
+
+    alternados = []
+    esperado = "user"
+    for mensaje in guardada[-MAXIMO_MENSAJES_GUARDADOS:]:
+        if not isinstance(mensaje, dict):
+            break
+        if mensaje.get("role") != esperado or not isinstance(mensaje.get("content"), str):
+            break
+        if not mensaje["content"].strip():
+            break
+        alternados.append({"role": esperado, "content": mensaje["content"]})
+        esperado = "assistant" if esperado == "user" else "user"
+
+    # Un último mensaje del usuario sin respuesta dejaría la lista terminada
+    # en "user", y el siguiente turno mandaría dos seguidos.
+    if alternados and alternados[-1]["role"] == "user":
+        alternados.pop()
+    return alternados
+
+
+def establecer_conversacion(mensajes) -> None:
+    datos = _cargar()
+    if not mensajes:
+        datos.pop("conversacion", None)
+        datos.pop("conversacion_fecha", None)
+        _guardar()
+        return
+
+    datos["conversacion"] = [
+        {"role": m["role"], "content": m["content"]}
+        for m in list(mensajes)[-MAXIMO_MENSAJES_GUARDADOS:]
+    ]
+    datos["conversacion_fecha"] = datetime.datetime.now().strftime(_FORMATO_FECHA)
     _guardar()
 
 

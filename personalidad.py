@@ -9,6 +9,7 @@ NO cambian con el tono a propósito: deben quedar claros sin importar qué
 tan formal o gracioso esté configurado Venok.
 """
 
+import datetime
 import random
 
 import memoria
@@ -16,7 +17,7 @@ import memoria
 TONOS = {
     "formal": {
         "saludos": [
-            "Buenas. ¿En qué puedo asistirle?",
+            "¿En qué puedo asistirle?",
             "A sus órdenes. Indíqueme en qué puedo ayudarle.",
             "Quedo atento a sus instrucciones.",
         ],
@@ -79,13 +80,43 @@ def _frases(categoria: str) -> list:
     return TONOS.get(tono, TONOS[memoria.TONO_DEFECTO])[categoria]
 
 
+# Lo último que se dijo de cada categoría, para no repetir la misma frase
+# dos veces seguidas. Con listas de dos o tres frases, el azar puro repetía
+# bastante y se notaba robótico.
+_ULTIMA_FRASE = {}
+
+
+def variar(opciones, clave: str = None) -> str:
+    """Elige una frase al azar evitando la que se dijo la vez anterior."""
+    opciones = list(opciones)
+    if not opciones:
+        return ""
+    clave = clave or str(opciones[0])
+    if len(opciones) > 1:
+        opciones = [frase for frase in opciones if frase != _ULTIMA_FRASE.get(clave)]
+    elegida = random.choice(opciones)
+    _ULTIMA_FRASE[clave] = elegida
+    return elegida
+
+
+def momento_del_dia() -> str:
+    """"Buenos días" / "Buenas tardes" / "Buenas noches" según la hora."""
+    hora = datetime.datetime.now().hour
+    if 5 <= hora < 12:
+        return "Buenos días"
+    if 12 <= hora < 20:
+        return "Buenas tardes"
+    return "Buenas noches"
+
+
 def saludo(nombre: str = None) -> str:
-    base = random.choice(_frases("saludos"))
-    return f"Hola, {nombre}. {base}" if nombre else base
+    base = variar(_frases("saludos"), "saludos")
+    apertura = momento_del_dia()
+    return f"{apertura}, {nombre}. {base}" if nombre else f"{apertura}. {base}"
 
 
 def confirmar(accion: str) -> str:
-    return random.choice(CONFIRMACIONES_ACCION).format(accion=accion)
+    return variar(CONFIRMACIONES_ACCION, "confirmaciones").format(accion=accion)
 
 
 def sugerencia(tipo: str) -> str:
@@ -93,8 +124,8 @@ def sugerencia(tipo: str) -> str:
 
 
 def no_entendido() -> str:
-    return random.choice(_frases("no_entendido"))
+    return variar(_frases("no_entendido"), "no_entendido")
 
 
 def despedida() -> str:
-    return random.choice(_frases("despedidas"))
+    return variar(_frases("despedidas"), "despedidas")

@@ -28,6 +28,7 @@ import requests
 import pyautogui
 
 import claude_api
+import personalidad
 from acciones import normalizar
 from config import WOLFRAM_APP_ID
 
@@ -128,9 +129,27 @@ def noticias(cantidad: int = 2) -> str:
         return "Recibí las noticias pero no pude leerlas bien."
 
 
+# La hora y la fecha son de lo que más se pregunta, y oír siempre la misma
+# frase palabra por palabra es lo que más hace sonar a robot. personalidad.variar
+# evita ademas que se repita la misma dos veces seguidas.
+_FORMAS_DE_DECIR_LA_HORA = [
+    "Son las {hora}.",
+    "Ahora mismo son las {hora}.",
+    "En este momento son las {hora}.",
+]
+
+_FORMAS_DE_DECIR_LA_FECHA = [
+    "Hoy es {fecha}.",
+    "Estamos a {fecha}.",
+    "Hoy tenemos {fecha}.",
+]
+
+
 def hora_actual() -> str:
     ahora = datetime.datetime.now()
-    return f"Son las {ahora.strftime('%I:%M %p')}."
+    return personalidad.variar(_FORMAS_DE_DECIR_LA_HORA, "hora").format(
+        hora=ahora.strftime("%I:%M %p")
+    )
 
 
 # País/ciudad (como lo dirías) -> zona horaria IANA
@@ -167,9 +186,19 @@ ZONAS_HORARIAS = {
 }
 
 
+# El nombre que dice el usuario llega por normalizar(), que quita las tildes
+# Y la enye: "Espana" nunca encontraba la clave "espana" escrita con enye, asi
+# que "que hora es en Espana" fallaba siempre. Se busca contra una copia del
+# diccionario con las claves ya normalizadas para que no vuelva a pasar con
+# ningun pais que se agregue despues.
+_ZONAS_POR_NOMBRE_NORMALIZADO = {
+    normalizar(pais): zona for pais, zona in ZONAS_HORARIAS.items()
+}
+
+
 def hora_en_pais(nombre_pais: str) -> str:
     nombre_pais = nombre_pais.strip()
-    zona = ZONAS_HORARIAS.get(normalizar(nombre_pais))
+    zona = _ZONAS_POR_NOMBRE_NORMALIZADO.get(normalizar(nombre_pais))
 
     if not zona:
         return (
@@ -198,7 +227,8 @@ def fecha_actual() -> str:
     meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
              "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
     dia_semana = dias[ahora.weekday()]
-    return f"Hoy es {dia_semana} {ahora.day} de {meses[ahora.month - 1]} de {ahora.year}."
+    fecha = f"{dia_semana} {ahora.day} de {meses[ahora.month - 1]} de {ahora.year}"
+    return personalidad.variar(_FORMAS_DE_DECIR_LA_FECHA, "fecha").format(fecha=fecha)
 
 
 def definir(termino: str) -> str:

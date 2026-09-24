@@ -161,6 +161,37 @@ def definir_herramientas() -> list:
                 "required": ["nombre"],
             },
         },
+        # El volumen y la reproducción ya existían como comandos, pero no como
+        # herramientas. Al conversar eso se notaba: ante un "súbelo otra vez"
+        # el modelo contestaba que lo hacía y en realidad no tocaba nada.
+        {
+            "name": "controlar_volumen",
+            "description": (
+                "Sube, baja o silencia el volumen del equipo. Úsala también para "
+                "seguimientos como 'súbelo otra vez' o 'un poco más'."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "accion": {"type": "string", "enum": ["subir", "bajar", "silenciar"]}
+                },
+                "required": ["accion"],
+            },
+        },
+        {
+            "name": "controlar_reproduccion",
+            "description": (
+                "Controla la música o el video que ya esté sonando: reproducir o "
+                "pausar, pasar a la siguiente canción o volver a la anterior."
+            ),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "accion": {"type": "string", "enum": ["reproducir", "siguiente", "anterior"]}
+                },
+                "required": ["accion"],
+            },
+        },
     ]
 
 
@@ -212,6 +243,10 @@ def ejecutar(nombre: str, argumentos: dict) -> str:
         return monitoreo.resumen_sistema()
     if nombre == "buscar_archivo":
         return archivos.buscar_archivo(argumentos.get("nombre", ""))
+    if nombre == "controlar_volumen":
+        return capacidades.volumen(argumentos.get("accion", ""))
+    if nombre == "controlar_reproduccion":
+        return capacidades.multimedia(argumentos.get("accion", ""))
 
     return None
 
@@ -239,7 +274,19 @@ def _instruccion(tono: str, nombre_asistente: str) -> str:
         f"{ahora.strftime('%d/%m/%Y a las %H:%M')}. Los próximos días son: "
         f"{_calendario_proximo()}. Úsalos para resolver fechas relativas. "
         f"Si el usuario pide algo que puedas hacer con una herramienta, úsala en vez "
-        f"de decir que no puedes. Si no aplica ninguna, simplemente responde conversando."
+        f"de decir que no puedes. Si no aplica ninguna, simplemente responde conversando. "
+        # Los mensajes anteriores que se mandan como historial incluyen lo que
+        # Venok respondió con sus propias reglas (la hora, un chiste, "abriendo
+        # Spotify"). Sin esta instrucción el modelo los ignora y contesta como
+        # si cada pregunta fuera la primera.
+        f"Hablan como dos amigos: los mensajes anteriores son parte de la MISMA "
+        f"conversación, incluidos los que respondiste tú. Cuando la persona diga "
+        f"algo que solo se entiende mirando atrás ('otro', '¿y por qué?', "
+        f"'repite eso', 'más'), resuélvelo con lo último que se dijo en vez de "
+        f"preguntar a qué se refiere. Enlaza con lo anterior con naturalidad y no "
+        f"repitas la pregunta antes de responder. "
+        f"Nunca digas que hiciste algo si no lo hiciste con una herramienta: "
+        f"si no tienes con qué hacerlo, dilo claramente."
     )
 
 
@@ -257,13 +304,10 @@ def atender(pregunta: str, tono: str = "amigable", nombre_asistente: str = "Veno
         historial=claude_api.obtener_historial(),
     )
 
+    # Nota: aquí ya NO se guarda el intercambio. Lo hace main.interpretar()
+    # para todas las respuestas por igual (reglas, Wolfram y agente); si se
+    # guardara en los dos sitios, las del agente saldrían duplicadas.
     if herramienta:
-        respuesta = ejecutar(herramienta, datos)
-        if respuesta:
-            claude_api.recordar_intercambio(pregunta, respuesta)
-            return respuesta
-        return None
+        return ejecutar(herramienta, datos) or None
 
-    if datos:
-        claude_api.recordar_intercambio(pregunta, datos)
     return datos

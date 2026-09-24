@@ -36,6 +36,7 @@ import memoria
 import recordatorios
 import imagen_ia
 from acciones import normalizar
+import main
 from main import escuchar, interpretar  # reutilizamos la lógica ya probada
 
 
@@ -51,6 +52,10 @@ def palabras_activacion() -> list:
 
 ventana = None
 modo_actual = "voz"  # "voz" o "texto", lo cambia la interfaz
+
+# La interfaz avisa por aquí cuando la animación de inicio ya mostró el
+# nombre; ese es el momento exacto de soltar el saludo hablado.
+animacion_lista = threading.Event()
 
 
 def actualizar_estado(estado: str) -> None:
@@ -90,6 +95,15 @@ def hablar_ui(texto: str) -> None:
     actualizar_estado("hablando")
     voz.hablar(texto)
     actualizar_estado("reposo")
+
+
+def avisar_progreso(texto: str) -> None:
+    """Lo llama main.py cuando una operación va a tardar y conviene decir algo
+    mientras tanto (buscar un video en YouTube, por ejemplo). Se dice en voz
+    alta y se escribe en el chat, y el reactor vuelve a "procesando" porque la
+    respuesta de verdad todavía no ha llegado."""
+    hablar_ui(texto)
+    actualizar_estado("procesando")
 
 
 def procesar_imagen(ruta: str, texto_usuario: str) -> None:
@@ -206,6 +220,13 @@ class VenokAPI:
             target=procesar_imagen, args=(ruta, texto or ""), daemon=True
         ).start()
 
+    def animacion_lista(self):
+        """La llama la interfaz cuando la animación de inicio llega al paso
+        en que aparece "VENOK". Sirve para que el saludo se escuche justo
+        ahí, en vez de calcularlo con una espera fija que se desincroniza si
+        la ventana tarda más o menos en abrir."""
+        animacion_lista.set()
+
     def cambiar_modo(self, modo: str):
         global modo_actual
         if modo in ("voz", "texto"):
@@ -245,13 +266,19 @@ def iniciar() -> None:
     )
 
     def saludo_inicial():
-        time.sleep(3)  # deja correr la animación de inicio (~2.9s) antes de hablar
+        # Espera a que la animación de inicio llegue al paso del nombre. El
+        # timeout es una red de seguridad: si la interfaz no alcanzara a
+        # avisar (p. ej. el puente con JavaScript tardó de más), el saludo
+        # igual suena en vez de quedarse mudo para siempre.
+        animacion_lista.wait(timeout=8)
         nombre_asistente = memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE
         hablar_ui(f"{nombre_asistente} en línea. " + personalidad.saludo(memoria.obtener_nombre()))
 
     def avisar_recordatorio(mensaje: str):
         agregar_actividad(f"⏰ {mensaje}")
         hablar_ui(mensaje)
+
+    main.avisar_progreso = avisar_progreso
 
     threading.Thread(target=saludo_inicial, daemon=True).start()
     threading.Thread(target=bucle_voz, daemon=True).start()

@@ -27,8 +27,22 @@ import navegador_ia
 import claude_api
 import correo
 import agente
+import youtube
+import presentacion
 
 reconocedor = sr.Recognizer()
+
+# app.py engancha aquí una función para avisar en el chat (y en voz alta)
+# mientras una operación tarda, por ejemplo mientras se busca en YouTube. En
+# la versión de consola no hay interfaz, así que solo se imprime.
+avisar_progreso = None
+
+
+def _avisar(texto: str) -> None:
+    if avisar_progreso:
+        avisar_progreso(texto)
+    else:
+        print(texto)
 
 PALABRAS_REDES_SOCIALES = {"facebook", "instagram"}
 
@@ -68,6 +82,42 @@ _PATRON_ENVIAR_CORREO = re.compile(
 )
 _PATRON_TRADUCIR = re.compile(r"traduce(?:me)?\s+(.+?)\s+a[lo]?\s+(\w+)\s*[.?]?$")
 _PATRON_COMO_SE_DICE = re.compile(r"como\s+se\s+dice\s+(.+?)\s+en\s+(\w+)\s*[.?]?$")
+
+# --- YouTube ---
+# "en youtube" explicito ("pon X en youtube", "busca X en youtube") y la
+# forma suelta ("quiero escuchar X", "pon X"). "busca" NO entra en la forma
+# suelta a proposito: "busca recetas de pizza" debe seguir siendo una
+# busqueda normal, no un video.
+_VERBOS_YOUTUBE_EXPLICITO = r"(?:ponme|pon|reproduce(?:me)?|buscame|busca|abre|quiero escuchar|quiero ver|escucha|ver)"
+_VERBOS_YOUTUBE_SUELTO = r"(?:ponme|pon|reproduce(?:me)?|quiero escuchar|quiero ver)"
+_PATRON_YOUTUBE_EXPLICITO = re.compile(
+    rf"^{_VERBOS_YOUTUBE_EXPLICITO}\s+(.+?)\s+en\s+youtube\s*$"
+)
+_PATRON_YOUTUBE_SUELTO = re.compile(rf"^{_VERBOS_YOUTUBE_SUELTO}\s+(.+)$")
+
+# "reproduce" o "pon la musica" a secas son los controles de reproduccion de
+# siempre (las teclas multimedia del teclado), no una busqueda de video.
+_SOLO_CONTROL_MULTIMEDIA = {
+    "musica", "la musica", "cancion", "la cancion", "una cancion",
+    "video", "el video", "play", "la reproduccion", "eso", "esto",
+}
+
+
+def _busqueda_de_youtube(comando_norm: str):
+    """Saca el tema a buscar en YouTube, o None si el comando no es para eso."""
+    coincidencia = _PATRON_YOUTUBE_EXPLICITO.match(comando_norm)
+    if coincidencia:
+        return coincidencia.group(1).strip()
+
+    coincidencia = _PATRON_YOUTUBE_SUELTO.match(comando_norm)
+    if not coincidencia:
+        return None
+
+    tema = coincidencia.group(1).strip(" ?¿.,!¡")
+    if tema in _SOLO_CONTROL_MULTIMEDIA or "volumen" in tema:
+        return None
+    return tema
+
 
 PALABRAS_DE_DATOS = (
     "distancia", "masa", "velocidad", "densidad", "temperatura", "raiz",
@@ -111,7 +161,50 @@ def _parece_pregunta_de_datos(comando_norm: str) -> bool:
     return any(palabra in comando_norm for palabra in PALABRAS_DE_DATOS)
 
 
+# Frases que por sí solas no dicen nada: solo se entienden mirando lo que se
+# acaba de hablar ("otro", "¿y por qué?", "repite eso"). Cuando hay
+# conversación abierta, estas van a la IA con el historial en vez de a
+# Wolfram Alpha, que responde cada pregunta como si fuera la primera.
+_PALABRAS_DE_SEGUIMIENTO = (
+    "otro", "otra", "mas", "eso", "esa", "ese", "aquello", "repite",
+    "repitelo", "explicame", "explicalo", "continua", "sigue", "dime mas",
+    "de nuevo", "otra vez", "por que", "porque", "y tu", "tambien",
+)
+
+
+def _parece_seguimiento(comando_norm: str) -> bool:
+    """¿Este comando se refiere a lo que Venok acaba de decir?"""
+    if not claude_api.obtener_historial():
+        return False  # no hay nada anterior a lo que referirse
+
+    if comando_norm.startswith(("y ", "pero ", "entonces ")):
+        return True
+
+    palabras = comando_norm.split()
+    if len(palabras) <= 4 and any(p in _PALABRAS_DE_SEGUIMIENTO for p in palabras):
+        return True
+
+    return any(frase in comando_norm for frase in ("por que", "otra vez", "de nuevo", "dime mas"))
+
+
 def interpretar(comando: str) -> str:
+    """Resuelve el comando y deja el intercambio en el historial de
+    conversación.
+
+    Antes solo el agente de IA guardaba lo que respondía, así que si Venok
+    contestaba con una de sus reglas (un chiste, la hora, "abriendo Spotify")
+    ese turno desaparecía: el siguiente "otro" o "¿y por qué?" llegaba sin
+    nada a lo que referirse. Guardando aquí, en un solo sitio, todas las
+    respuestas cuentan como parte de la misma conversación."""
+    respuesta = _resolver(comando)
+
+    if comando and respuesta and respuesta != "SALIR":
+        claude_api.recordar_intercambio(comando, respuesta)
+
+    return respuesta
+
+
+def _resolver(comando: str) -> str:
     if not comando:
         return ""
 
@@ -123,6 +216,21 @@ def interpretar(comando: str) -> str:
     # sin importar si vino por voz o por texto.
     if permisos.hay_pendiente():
         return permisos.resolver(comando_norm)
+
+    # --- El número de "haz lo tuyo" (ver presentacion.py) ---
+    # Va aquí arriba, antes que cualquier regla, porque la frase con la que se
+    # le insiste es libre ("eso, lo de la información") y podría parecerse por
+    # accidente a otro comando.
+    if presentacion.hay_numero_pendiente():
+        if presentacion.insistieron(comando_norm):
+            return presentacion.presentarse()
+        # No insistió: se cancela el número y el comando sigue su camino normal.
+
+    if presentacion.le_pidieron_el_numero(comando_norm):
+        return presentacion.hacerse_el_desentendido()
+
+    if presentacion.le_pidieron_presentarse(comando_norm):
+        return presentacion.presentarse()
 
     # --- Memoria: datos del usuario ---
     if comando_norm.startswith("me llamo ") or comando_norm.startswith("mi nombre es "):
@@ -298,7 +406,10 @@ def interpretar(comando: str) -> str:
         return navegador_ia.resumir_pagina(url)
 
     # --- Calculadora ---
-    if "cuanto es" in comando_norm or comando_norm.startswith("calcula"):
+    # Ojo con el limite de palabra: sin el, "cuanto es" tambien coincide dentro
+    # de "cuanto ESpacio libre tengo", y esa pregunta terminaba en la
+    # calculadora en vez de en el estado del disco.
+    if re.search(r"\bcuanto es\b", comando_norm) or comando_norm.startswith("calcula"):
         expresion = re.sub(r"^(cuanto es|calcula)\s*", "", comando_norm).strip()
         return capacidades.calcular(expresion)
 
@@ -348,6 +459,24 @@ def interpretar(comando: str) -> str:
 
     if "programas instalados" in comando_norm:
         return analisis_equipo.programas_instalados()
+
+    # --- YouTube: buscar un video y reproducirlo ---
+    tema_youtube = _busqueda_de_youtube(comando_norm)
+    if tema_youtube:
+        if not youtube.hay_credenciales():
+            # Sin clave de YouTube se hace lo de siempre: abrir la pagina de
+            # resultados, que no necesita ninguna API.
+            return acciones.abrir_sitio_con_busqueda("youtube", tema_youtube)
+
+        _avisar(f"Buscando {tema_youtube} en YouTube...")
+        video, error = youtube.buscar(tema_youtube)
+        if error:
+            return error
+        return permisos.solicitar(
+            f"Encontré {video['titulo']}, del canal {video['canal']}. ¿Lo reproduzco?",
+            lambda: youtube.reproducir(video),
+            mensaje_cancelado="Entendido, no lo reproduzco.",
+        )
 
     # --- Multimedia ---
     if "reproduce" in comando_norm or "pausa la musica" in comando_norm or comando_norm.strip() == "play":
@@ -500,7 +629,10 @@ def interpretar(comando: str) -> str:
         return personalidad.saludo(memoria.obtener_nombre())
 
     if "gracias" in comando_norm:
-        return "Con gusto. Para eso estoy."
+        return personalidad.variar(
+            ("Con gusto. Para eso estoy.", "Cuando quiera.", "A la orden."),
+            "de_nada",
+        )
 
     if "adios" in comando_norm or "salir" in comando_norm:
         claude_api.limpiar_historial()
@@ -522,7 +654,10 @@ def interpretar(comando: str) -> str:
         nombre_asistente = memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE
         return agente.atender(comando, memoria.obtener_tono(), nombre_asistente)
 
-    if _parece_pregunta_de_datos(comando_norm):
+    # Un seguimiento ("¿y cuántos años tenía?") puede traer palabras de datos y
+    # parecer una pregunta para Wolfram, pero Wolfram no sabe de qué se venia
+    # hablando: esas van siempre a la IA primero, que sí lleva el historial.
+    if _parece_pregunta_de_datos(comando_norm) and not _parece_seguimiento(comando_norm):
         intentos = (_intentar_wolfram, _intentar_claude)
     else:
         intentos = (_intentar_claude, _intentar_wolfram)

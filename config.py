@@ -49,6 +49,11 @@ WOLFRAM_APP_ID = os.environ.get("WOLFRAM_APP_ID")
 # --- Anthropic / Claude (para investigar y resumir páginas web con IA) ---
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
+# --- YouTube (buscar y reproducir videos) ---
+# Clave gratuita de YouTube Data API v3 (Google Cloud Console). Sin ella
+# Venok sigue funcionando: solo abre la página de resultados como antes.
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
+
 # --- Correo (Gmail) ---
 # La contraseña NO es la de tu cuenta: es una "contraseña de aplicación"
 # que se genera en https://myaccount.google.com/apppasswords
