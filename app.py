@@ -40,6 +40,39 @@ import main
 from main import escuchar, interpretar  # reutilizamos la lógica ya probada
 
 
+def ya_hay_otro_venok() -> bool:
+    """¿Hay otra ventana de Venok abierta?
+
+    Dos instancias a la vez se pelean por la salida de audio: medido, cada
+    frase pasa de 1.7 a 8 segundos y las dos voces se encinan, que es lo que
+    se ve como quedarse en "Respondiendo..." sin que suene nada. También se
+    pelean por el micrófono. Se usa un mutex con nombre de Windows, que el
+    sistema libera solo cuando el proceso termina (aunque se cierre mal).
+    """
+    if not sys.platform.startswith("win"):
+        return False
+    import ctypes
+
+    ERROR_YA_EXISTE = 183
+    # Se guarda en una variable de módulo para que el mutex viva mientras
+    # viva Venok: si el recolector de basura se lo lleva, se libera el nombre.
+    global _mutex_instancia
+    _mutex_instancia = ctypes.windll.kernel32.CreateMutexW(None, False, "Venok_instancia_unica")
+    return ctypes.windll.kernel32.GetLastError() == ERROR_YA_EXISTE
+
+
+def avisar_que_ya_esta_abierto() -> None:
+    import ctypes
+
+    ctypes.windll.user32.MessageBoxW(
+        None,
+        "Venok ya está abierto.\n\nBusca su ventana en la barra de tareas. "
+        "Tener dos abiertos a la vez hace que la voz se atropelle.",
+        "Venok",
+        0x40,  # icono de información
+    )
+
+
 def palabras_activacion() -> list:
     """Frases que activan a Venok en modo voz. Se recalculan cada vez para
     reflejar el nombre actual (el usuario puede cambiarlo con 'llámate X').
@@ -51,6 +84,7 @@ def palabras_activacion() -> list:
 
 
 ventana = None
+_mutex_instancia = None
 modo_actual = "voz"  # "voz" o "texto", lo cambia la interfaz
 
 # La interfaz avisa por aquí cuando la animación de inicio ya mostró el
@@ -95,6 +129,14 @@ def hablar_ui(texto: str) -> None:
     actualizar_estado("hablando")
     voz.hablar(texto)
     actualizar_estado("reposo")
+
+
+def avisar_problema_de_voz(mensaje: str) -> None:
+    """Lo llama voz.py cuando no logró hablar. Sin esto el fallo solo se
+    imprimía por consola, y el .exe no tiene consola: la respuesta se quedaba
+    escrita en el chat sin sonar y sin explicación."""
+    agregar_actividad(f"⚠ {mensaje}")
+    agregar_mensaje_chat("venok", f"({mensaje})")
 
 
 def avisar_progreso(texto: str) -> None:
@@ -279,6 +321,7 @@ def iniciar() -> None:
         hablar_ui(mensaje)
 
     main.avisar_progreso = avisar_progreso
+    voz.avisar_problema = avisar_problema_de_voz
 
     threading.Thread(target=saludo_inicial, daemon=True).start()
     threading.Thread(target=bucle_voz, daemon=True).start()
@@ -288,4 +331,7 @@ def iniciar() -> None:
 
 
 if __name__ == "__main__":
-    iniciar()
+    if ya_hay_otro_venok():
+        avisar_que_ya_esta_abierto()
+    else:
+        iniciar()

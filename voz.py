@@ -24,10 +24,32 @@ los creó, y en app.py cada respuesta sale de un hilo distinto.
 
 import queue
 import threading
+import time
 
 from config import MOTOR_VOZ
 
 _candado = threading.Lock()  # una sola locución a la vez: hablar encimado suena horrible
+
+# La salida de audio puede no estar disponible por un momento (otro programa
+# acaparando el dispositivo, unos audifonos USB despertando, dos Venok
+# abiertos a la vez). SAPI devuelve SPERR_NO_DRIVER y antes eso se daba por
+# perdido al instante. Reintentar un par de veces recupera la mayoría de
+# esos casos, que son pasajeros.
+_ESPERAS_ENTRE_INTENTOS = (0.4, 1.2)
+
+# app.py engancha aquí una función para avisar EN PANTALLA cuando no se pudo
+# hablar. Antes el fallo solo se imprimía por consola, y en el .exe no hay
+# consola: el usuario se quedaba sin voz y sin ninguna explicación.
+avisar_problema = None
+
+
+def _avisar(mensaje: str) -> None:
+    print(f"[Venok] {mensaje}")
+    if avisar_problema:
+        try:
+            avisar_problema(mensaje)
+        except Exception:
+            pass  # avisar nunca debe tumbar la respuesta
 
 _cola = queue.Queue()
 _hilo_sapi = None
@@ -65,11 +87,16 @@ def _trabajador_sapi() -> None:
     while True:
         texto, terminado, resultado = _cola.get()
         try:
-            voz.Speak(texto, 0)  # 0 = síncrono: regresa cuando termina de hablar
-            resultado["ok"] = True
-        except Exception as error:
-            print(f"[Venok] La voz de Windows falló ({error}). Uso el método de respaldo.")
-            resultado["ok"] = False
+            for intento in range(len(_ESPERAS_ENTRE_INTENTOS) + 1):
+                try:
+                    voz.Speak(texto, 0)  # 0 = síncrono: regresa al terminar de hablar
+                    resultado["ok"] = True
+                    break
+                except Exception as error:
+                    resultado["error"] = str(error)
+                    if intento < len(_ESPERAS_ENTRE_INTENTOS):
+                        # Casi siempre es pasajero: se espera y se reintenta.
+                        time.sleep(_ESPERAS_ENTRE_INTENTOS[intento])
         finally:
             terminado.set()
 
@@ -91,13 +118,20 @@ def _hablar_rapido(texto: str) -> bool:
     # Holgado a propósito (a este ritmo se dicen ~15 caracteres por segundo):
     # solo debe vencer si SAPI se colgó, no si la respuesta es larga.
     if not terminado.wait(timeout=max(15, len(texto) * 0.2)):
-        print("[Venok] La voz de Windows no respondió a tiempo. Uso el método de respaldo.")
+        _avisar("La voz de Windows no respondió a tiempo. Uso el método de respaldo.")
         _sapi_disponible = False
         return False
-    return resultado.get("ok", False)
+
+    if not resultado.get("ok"):
+        print(f"[Venok] La voz de Windows falló ({resultado.get('error')}). Uso el método de respaldo.")
+        return False
+    return True
 
 
-def _hablar_sistema(texto: str) -> None:
+def _hablar_sistema(texto: str) -> bool:
+    """Respaldo por PowerShell. Regresa True solo si de verdad hablo: antes
+    devolvia None pasara lo que pasara, asi que un fallo aqui dejaba a Venok
+    mudo sin que nadie se enterara."""
     # Guardamos el texto en un archivo temporal y hacemos que PowerShell lo
     # LEA de ahí, en vez de meterlo directo en el comando. Así no importa
     # qué símbolos traiga el texto (comillas, comas, signos, etc.) — antes
@@ -123,14 +157,19 @@ def _hablar_sistema(texto: str) -> None:
             f"$texto = Get-Content -LiteralPath '{ruta_temporal}' -Raw -Encoding UTF8; "
             "$s.Speak($texto)"
         )
-        subprocess.run(
+        resultado = subprocess.run(
             ["powershell", "-NoProfile", "-Command", comando_ps],
             capture_output=True,
             text=True,
             creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
         )
+        if resultado.returncode != 0:
+            print(f"[Venok] El respaldo de voz falló: {(resultado.stderr or '').strip()[:200]}")
+            return False
+        return True
     except Exception as error:
-        print(f"[Venok] No pude generar la voz del sistema ({error}). Sigo solo con texto.")
+        print(f"[Venok] No pude generar la voz del sistema ({error}).")
+        return False
     finally:
         if ruta_temporal:
             try:
@@ -171,11 +210,23 @@ def _hablar_elevenlabs(texto: str) -> None:
         print(f"[Venok] No pude generar la voz con ElevenLabs ({error}). Sigo solo con texto.")
 
 
-def hablar(texto: str) -> None:
+def hablar(texto: str) -> bool:
+    """Dice el texto en voz alta. Regresa False si no se pudo (y entonces ya
+    avisó en pantalla), para que quien llame sepa que solo quedó el texto."""
     print(f"[Venok] {texto}")
 
     with _candado:
         if MOTOR_VOZ == "elevenlabs":
             _hablar_elevenlabs(texto)
-        elif not _hablar_rapido(texto):
-            _hablar_sistema(texto)
+            return True
+
+        if _hablar_rapido(texto):
+            return True
+        if _hablar_sistema(texto):
+            return True
+
+    _avisar(
+        "No pude usar el altavoz: puede que otro programa lo tenga ocupado, "
+        "o que haya otra ventana de Venok abierta. La respuesta está escrita en el chat."
+    )
+    return False

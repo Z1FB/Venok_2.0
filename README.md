@@ -254,6 +254,11 @@ pantalla, se detiene cualquier acción automática en curso.
   se presenta solo durante un minuto, sin necesidad de internet.
 - Deja "adiós" para el final: al despedirse borra la memoria de la
   conversación (el nombre, la ciudad y los colores sí se conservan).
+- Abre Venok una sola vez: si intentas abrir una segunda ventana, avisa y no
+  se abre. Dos a la vez se pelean por la salida de audio (medido: cada frase
+  pasa de 1.7 a 8 segundos) y por el micrófono.
+- Si algún programa acapara el altavoz, Venok lo reintenta y, si aún así no
+  puede hablar, lo dice en el chat en vez de quedarse mudo sin explicación.
 - No dejes visible ninguna terminal ni el archivo `.env` mientras proyectas.
 
 ## Estructura del proyecto
