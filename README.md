@@ -47,6 +47,9 @@ para el historial de decisiones de diseño.
 - **Correo** (opcional): revisar la bandeja de entrada y enviar mensajes.
 - **Accesibilidad**: control de mouse y teclado por voz (mover, clic,
   escribir, teclas, scroll).
+- **Controlar su propia voz**: "cállate" o "para de hablar" corta la frase en
+  seco a media palabra (no espera a terminarla); "habla más despacio" y "habla
+  más rápido" cambian la velocidad, de 4.4 a 1.9 segundos para la misma frase.
 - **Modo presentación**: con "modo presentación" deja de hablarle solo a su
   dueño y se dirige al público: trata de usted en plural, usa un tono
   profesional —con alguna pizca de humor— y deja de usar emojis, que la voz
@@ -221,8 +224,9 @@ El panel de **Configuración** de la interfaz permite, sin usar la voz:
   tonos (o cualquier otro con el selector de Windows): uno para las letras,
   el reactor y los detalles, y otro para el fondo. Las letras se aclaran u
   oscurecen solas para seguir leyéndose con cualquier combinación.
-- Agrandar o achicar la letra del chat y de los textos del reactor
-  (de 80% a 150%).
+- Agrandar o achicar **toda** la letra de la interfaz —chat, barra superior,
+  menús, botones y los textos del reactor— de 80% a 300%. El tope es alto a
+  propósito: proyectado en un salón, el 150% no se lee desde el fondo.
 
 Los colores y el tamaño de letra se guardan en `memoria.json` y se
 conservan al cerrar la app.

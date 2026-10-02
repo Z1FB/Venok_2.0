@@ -43,10 +43,15 @@
   }
 
   /* ---------------- BARRA SUPERIOR ---------------- */
+  /* Con la letra muy grande (se puede llegar al 300% para proyectar), el
+     logo + los enlaces + el estado no caben en una línea y la parte derecha
+     quedaba cortada fuera de la ventana. Se deja que bajen de línea. */
   .top-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 16px;
     padding: 16px 28px;
     border-bottom: 1px solid rgba(var(--accent-rgb), 0.15);
     flex-shrink: 0;
@@ -70,16 +75,17 @@
   }
   .logo-texto .titulo {
     font-family: 'Orbitron', sans-serif;
-    font-size: 18px;
+    font-size: calc(18px * var(--escala-letra));
     letter-spacing: 3px;
   }
   .logo-texto .subtitulo {
-    font-size: 11px;
+    font-size: calc(11px * var(--escala-letra));
     letter-spacing: 2px;
     color: var(--text-secondary);
   }
   .nav-links {
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
   }
   .nav-links button {
@@ -92,7 +98,7 @@
     padding: 8px 18px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: calc(13px * var(--escala-letra));
     text-transform: uppercase;
   }
   .nav-links button.activo {
@@ -103,7 +109,7 @@
 
   .estado-conexion {
     text-align: right;
-    font-size: 11px;
+    font-size: calc(11px * var(--escala-letra));
     letter-spacing: 1px;
     color: var(--text-secondary);
   }
@@ -163,7 +169,7 @@
 
   .actividad-vacia {
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: calc(13px * var(--escala-letra));
     padding: 14px;
     text-align: center;
   }
@@ -192,13 +198,13 @@
   }
   .chat-header .titulo {
     font-family: 'Orbitron', sans-serif;
-    font-size: 14px;
+    font-size: calc(14px * var(--escala-letra));
     letter-spacing: 2px;
   }
   .chat-header .cerrar {
     cursor: pointer;
     color: var(--text-secondary);
-    font-size: 18px;
+    font-size: calc(18px * var(--escala-letra));
     background: none;
     border: none;
   }
@@ -216,7 +222,7 @@
     padding: 10px 6px;
     border-radius: 8px;
     font-family: 'Rajdhani', sans-serif;
-    font-size: 12px;
+    font-size: calc(12px * var(--escala-letra));
     font-weight: 600;
     letter-spacing: 0.5px;
     cursor: pointer;
@@ -290,7 +296,7 @@
     border-radius: 8px;
     width: 42px;
     color: var(--on-accent);
-    font-size: 16px;
+    font-size: calc(16px * var(--escala-letra));
     cursor: pointer;
   }
   /* El clip es secundario: se distingue del botón de enviar */
@@ -410,10 +416,14 @@
     text-transform: uppercase;
     line-height: 1.6;
   }
-  .panel-izq { left: 4%; top: 30%; text-align: left; width: 160px; }
-  .panel-izq2 { left: 4%; top: 55%; text-align: left; width: 160px; }
-  .panel-der { right: 4%; top: 30%; text-align: right; width: 160px; }
-  .panel-der2 { right: 4%; top: 55%; text-align: right; width: 160px; }
+  /* El ancho crece con la letra: con 160px fijos, al agrandar el texto las
+     etiquetas se partían en más líneas y acababan montadas sobre el anillo
+     naranja. Y se separan del centro para no invadirlo. */
+  .panel-lateral { width: calc(160px * var(--escala-letra)); }
+  .panel-izq { left: calc(4% - (var(--escala-letra) - 1) * 30px); top: 26%; text-align: left; }
+  .panel-izq2 { left: calc(4% - (var(--escala-letra) - 1) * 30px); top: 58%; text-align: left; }
+  .panel-der { right: calc(4% - (var(--escala-letra) - 1) * 30px); top: 26%; text-align: right; }
+  .panel-der2 { right: calc(4% - (var(--escala-letra) - 1) * 30px); top: 58%; text-align: right; }
 
   .barras {
     position: absolute;
@@ -438,9 +448,9 @@
   }
   .dock-item {
     display: flex; flex-direction: column; align-items: center; gap: 4px;
-    cursor: pointer; color: var(--text-secondary); font-size: 11px; letter-spacing: 1px;
+    cursor: pointer; color: var(--text-secondary); font-size: calc(11px * var(--escala-letra)); letter-spacing: 1px;
   }
-  .dock-item .icono { font-size: 20px; }
+  .dock-item .icono { font-size: calc(20px * var(--escala-letra)); }
   .dock-item:hover, .dock-item.activo { color: var(--accent); }
 
   @keyframes respirar { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
@@ -472,7 +482,7 @@
   }
   .modal-config h2 {
     font-family: 'Orbitron', sans-serif;
-    font-size: 16px;
+    font-size: calc(16px * var(--escala-letra));
     letter-spacing: 2px;
     margin: 0 0 4px;
   }
@@ -481,7 +491,7 @@
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 18px;
+    font-size: calc(18px * var(--escala-letra));
     cursor: pointer;
   }
   .modal-config .seccion {
@@ -490,7 +500,7 @@
     border-top: 1px solid rgba(var(--accent-rgb), 0.15);
   }
   .modal-config .seccion h3 {
-    font-size: 13px;
+    font-size: calc(13px * var(--escala-letra));
     letter-spacing: 1px;
     text-transform: uppercase;
     color: var(--text-secondary);
@@ -530,7 +540,7 @@
     padding: 9px 6px;
     border-radius: 8px;
     font-family: 'Rajdhani', sans-serif;
-    font-size: 13px;
+    font-size: calc(13px * var(--escala-letra));
     font-weight: 600;
     cursor: pointer;
   }
@@ -571,7 +581,7 @@
     align-items: center;
     gap: 10px;
     margin-top: 12px;
-    font-size: 13px;
+    font-size: calc(13px * var(--escala-letra));
     color: var(--text-secondary);
   }
   .fila-acciones-color input[type="color"] {
@@ -613,7 +623,7 @@
     padding: 10px 12px;
     color: var(--text-primary);
     font-family: 'Rajdhani', sans-serif;
-    font-size: 14px;
+    font-size: calc(14px * var(--escala-letra));
     outline: none;
     margin-bottom: 10px;
   }
@@ -626,7 +636,7 @@
     font-family: 'Rajdhani', sans-serif;
     font-weight: 600;
     cursor: pointer;
-    font-size: 13px;
+    font-size: calc(13px * var(--escala-letra));
   }
   .tonos-opciones {
     display: flex;
@@ -640,7 +650,7 @@
     padding: 9px 4px;
     border-radius: 8px;
     font-family: 'Rajdhani', sans-serif;
-    font-size: 12px;
+    font-size: calc(12px * var(--escala-letra));
     font-weight: 600;
     cursor: pointer;
   }
@@ -650,7 +660,7 @@
     color: var(--text-primary);
   }
   .modal-config .nota-guardado {
-    font-size: 11px;
+    font-size: calc(11px * var(--escala-letra));
     color: var(--text-secondary);
     margin-top: 6px;
     min-height: 14px;
@@ -659,7 +669,7 @@
   /* ---------------- PANEL DE HERRAMIENTAS ---------------- */
   .grupo-herramientas + .grupo-herramientas { margin-top: 16px; }
   .grupo-herramientas h3 {
-    font-size: 12px;
+    font-size: calc(12px * var(--escala-letra));
     letter-spacing: 1px;
     text-transform: uppercase;
     color: var(--text-secondary);
@@ -677,7 +687,7 @@
     border-radius: 100px;
     padding: 7px 13px;
     font-family: 'Rajdhani', sans-serif;
-    font-size: 13px;
+    font-size: calc(13px * var(--escala-letra));
     font-weight: 600;
     cursor: pointer;
     text-align: left;
@@ -802,7 +812,7 @@
   </div>
   <div class="estado-conexion">
     <div><span class="punto"></span><span class="linea1">EN LÍNEA</span></div>
-    <div>v2.3.1</div>
+    <div>v2.4.0</div>
   </div>
 </div>
 
@@ -912,7 +922,7 @@
         <span class="valor-tamano" id="valorTamano">100%</span>
         <button class="boton-secundario" id="botonLetraMayor" onclick="cambiarTamanoLetra(1)" aria-label="Letra más grande">A+</button>
       </div>
-      <div class="vista-previa-letra">Así se verá el texto del chat y alrededor del reactor.</div>
+      <div class="vista-previa-letra">Afecta a toda la interfaz: chat, menús, botones y el texto del reactor. Hasta el 300%, para que se lea proyectado.</div>
     </div>
 
     <div class="seccion">
@@ -1093,7 +1103,10 @@
     rojo:    { principal: '#ff4d5e', fondo: '#160505' },
   };
 
-  const ESCALAS_LETRA = [0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5];
+  // Llega hasta el 300% porque esto se proyecta en un salón: desde el fondo,
+  // el 150% todavía no se lee. Los saltos son más grandes a partir del 150%
+  // para no tener que pulsar quince veces.
+  const ESCALAS_LETRA = [0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3];
 
   // --- Matemática de color ---
   function hexARgb(hex) {

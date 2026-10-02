@@ -37,6 +37,20 @@ _candado = threading.Lock()  # una sola locución a la vez: hablar encimado suen
 # esos casos, que son pasajeros.
 _ESPERAS_ENTRE_INTENTOS = (0.4, 1.2)
 
+# Banderas de SAPI para Speak(): 1 = hablar sin bloquear el hilo,
+# 2 = descartar lo que se esté diciendo ahora mismo.
+_SVSF_ASINCRONO = 1
+_SVSF_PURGAR = 2
+
+_parar = threading.Event()   # alguien pidió callar lo que se está diciendo
+_voz_sapi = None             # el objeto de SAPI, solo lo usa su propio hilo
+
+# Rango de velocidad de SAPI. Va de -10 a 10, pero fuera de esta franja o no
+# se entiende nada o se arrastra tanto que desespera.
+VELOCIDAD_MINIMA = -3
+VELOCIDAD_MAXIMA = 5
+_velocidad = 1  # la de siempre
+
 # app.py engancha aquí una función para avisar EN PANTALLA cuando no se pudo
 # hablar. Antes el fallo solo se imprimía por consola, y en el .exe no hay
 # consola: el usuario se quedaba sin voz y sin ninguna explicación.
@@ -76,20 +90,28 @@ def _trabajador_sapi() -> None:
             if _es_voz_en_espanol(token):
                 voz.Voice = token
                 break
-        voz.Rate = 1  # un poco más ágil que el ritmo por defecto
+        voz.Rate = _velocidad
     except Exception as error:
         print(f"[Venok] No pude iniciar la voz de Windows ({error}). Uso el método de respaldo.")
         _sapi_disponible = False
         _sapi_listo.set()
         return
 
+    global _voz_sapi
+    _voz_sapi = voz
     _sapi_listo.set()
     while True:
         texto, terminado, resultado = _cola.get()
+        _parar.clear()
+        # La velocidad se cambia desde otro hilo, pero el objeto de SAPI solo
+        # se puede tocar desde aquí: se aplica justo antes de cada frase. El
+        # efecto se nota ya en la propia frase que confirma el cambio.
+        if voz.Rate != _velocidad:
+            voz.Rate = _velocidad
         try:
             for intento in range(len(_ESPERAS_ENTRE_INTENTOS) + 1):
                 try:
-                    voz.Speak(texto, 0)  # 0 = síncrono: regresa al terminar de hablar
+                    _decir_pudiendo_parar(voz, texto)
                     resultado["ok"] = True
                     break
                 except Exception as error:
@@ -99,6 +121,27 @@ def _trabajador_sapi() -> None:
                         time.sleep(_ESPERAS_ENTRE_INTENTOS[intento])
         finally:
             terminado.set()
+
+
+def _decir_pudiendo_parar(voz, texto: str) -> None:
+    """Habla de forma que se pueda interrumpir a media frase.
+
+    Antes se usaba Speak(texto, 0), que es síncrono: el hilo se quedaba
+    bloqueado dentro de SAPI hasta terminar la frase entera y no había
+    manera de callarlo. Decir "cállate" solo servía para que contestara
+    "claro, me quedo callado"... cuando ya había acabado de hablar.
+
+    Ahora se habla en modo asíncrono y se vigila el final en trozos de
+    100 ms, atento a que alguien pida parar. Todo ocurre en este mismo
+    hilo porque el objeto de SAPI pertenece a él y no se puede tocar
+    desde fuera.
+    """
+    voz.Speak(texto, _SVSF_ASINCRONO)
+    while not voz.WaitUntilDone(100):
+        if _parar.is_set():
+            # Hablar una cadena vacía purgando descarta lo que quedaba.
+            voz.Speak("", _SVSF_PURGAR)
+            return
 
 
 def _hablar_rapido(texto: str) -> bool:
@@ -126,6 +169,49 @@ def _hablar_rapido(texto: str) -> bool:
         print(f"[Venok] La voz de Windows falló ({resultado.get('error')}). Uso el método de respaldo.")
         return False
     return True
+
+
+def callar() -> str:
+    """Corta en seco lo que Venok esté diciendo y tira lo que quedara en cola."""
+    estaba_hablando = _candado.locked()
+    _parar.set()
+
+    descartadas = 0
+    while True:
+        try:
+            _, terminado, resultado = _cola.get_nowait()
+        except queue.Empty:
+            break
+        # Se marca como hablada aunque no se diga: si se dejara como fallida,
+        # el respaldo por PowerShell se pondría a decirla, que es justo lo
+        # contrario de lo que pidió el usuario.
+        resultado["ok"] = True
+        terminado.set()
+        descartadas += 1
+
+    if not estaba_hablando and not descartadas:
+        return "No estaba diciendo nada, pero vale."
+    # Una sola palabra: confirma en el chat que hizo caso, sin volver a
+    # soltar un discurso justo después de que le pidieran callarse.
+    return "Vale."
+
+
+def cambiar_velocidad(paso: int) -> str:
+    """Más rápido (paso positivo) o más despacio (paso negativo)."""
+    global _velocidad
+    anterior = _velocidad
+    _velocidad = max(VELOCIDAD_MINIMA, min(VELOCIDAD_MAXIMA, _velocidad + paso))
+
+    if _velocidad == anterior:
+        if paso > 0:
+            return "Ya estoy hablando lo más rápido que puedo sin que se me entienda mal."
+        return "Ya estoy hablando lo más despacio que puedo."
+
+    return "Listo, hablaré más rápido." if paso > 0 else "Listo, hablaré más despacio."
+
+
+def velocidad_actual() -> int:
+    return _velocidad
 
 
 def _hablar_sistema(texto: str) -> bool:

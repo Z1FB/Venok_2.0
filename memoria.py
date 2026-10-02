@@ -185,7 +185,7 @@ def establecer_tono(tono: str) -> bool:
 # Apariencia de la interfaz: color principal, color de fondo y tamaño de letra.
 _PATRON_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 ESCALA_LETRA_MINIMA = 0.8
-ESCALA_LETRA_MAXIMA = 1.5
+ESCALA_LETRA_MAXIMA = 3.0  # hasta el 300%: proyectado en un salón, el 150% no se lee de lejos
 
 
 def obtener_apariencia() -> dict:

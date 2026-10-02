@@ -10,6 +10,7 @@ import re
 import speech_recognition as sr
 
 from config import NOMBRE_ASISTENTE, IDIOMA_RECONOCIMIENTO
+import voz as voz_modulo
 from voz import hablar
 import acciones
 from acciones import normalizar
@@ -255,6 +256,20 @@ def _resolver(comando: str) -> str:
         if presentacion.insistieron(comando_norm):
             return presentacion.presentarse()
         # No insistió: se cancela el número y el comando sigue su camino normal.
+
+    # --- Control de la propia voz ---
+    # Va de las primeras: si Venok está a media frase, lo que el usuario quiere
+    # es que se calle YA, no que termine y luego lo comente.
+    if any(frase in comando_norm for frase in
+           ("callate", "calla te", "para de hablar", "deja de hablar",
+            "guarda silencio", "ya basta", "para ya")):
+        return voz_modulo.callar()
+
+    if "habla" in comando_norm or "hablas" in comando_norm:
+        if any(p in comando_norm for p in ("mas despacio", "mas lento", "mas lenta")):
+            return voz_modulo.cambiar_velocidad(-1)
+        if any(p in comando_norm for p in ("mas rapido", "mas deprisa", "mas veloz")):
+            return voz_modulo.cambiar_velocidad(1)
 
     # --- Modo presentación: hablarle al público en vez de solo a su dueño ---
     # Va antes que el número y que los tonos, porque cambia cómo se dicen
