@@ -85,6 +85,15 @@ DISPARADORES_DE_PROPOSITO = (
     "quien te hizo", "quien te programo", "quien te creo", "quien te desarrollo",
     "quien te construyo", "quien es tu creador", "quien te invento",
     "que empresa te hizo", "de quien eres",
+    # Preguntado de otras formas lo contestaba la IA, que lo reducía a
+    # "estoy para ayudarte a ti". Delante de un público eso convierte el
+    # proyecto en un juguete personal en vez de algo con un propósito.
+    "para que estas hecho", "para que estas hecha", "para que esta hecho",
+    "para que esta hecha", "para que fue creada", "para que fue creado",
+    "para que sirve esta app", "para que sirve esta aplicacion",
+    "para que sirve este programa", "para que sirve este proyecto",
+    "cual es tu funcion", "cual es su funcion", "que funcion tienes",
+    "para que te usan", "para que se usa", "en que consiste este proyecto",
 )
 
 _esperando_insistencia = False
