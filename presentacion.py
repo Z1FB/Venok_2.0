@@ -106,6 +106,47 @@ def le_preguntaron_el_proposito(comando_norm: str) -> bool:
     return any(frase in comando_norm for frase in DISPARADORES_DE_PROPOSITO)
 
 
+DISPARADORES_CREDITO_GRUPO = (
+    "dirigete al grupo como tus creadores", "dirigete al grupo",
+    "somos tus creadores", "nombra al grupo", "nombra al equipo",
+    "credito al grupo", "credito al equipo", "modo grupo",
+)
+DISPARADORES_CREDITO_INDIVIDUAL = (
+    "dirigete solo a mi", "solo a mi como tu creador", "modo individual",
+    "credito solo a mi", "nombrame solo a mi",
+)
+
+
+def le_pidieron_credito_grupo(comando_norm: str) -> bool:
+    return any(frase in comando_norm for frase in DISPARADORES_CREDITO_GRUPO)
+
+
+def le_pidieron_credito_individual(comando_norm: str) -> bool:
+    return any(frase in comando_norm for frase in DISPARADORES_CREDITO_INDIVIDUAL)
+
+
+def cambiar_credito(al_grupo: bool) -> str:
+    """Decide a quién nombra Venok cuando le preguntan quién lo hizo."""
+    memoria.establecer_credito(memoria.CREDITO_GRUPO if al_grupo else memoria.CREDITO_INDIVIDUAL)
+    autores = memoria.autores()
+
+    if not al_grupo:
+        return f"Entendido. A partir de ahora diré que mi creador es {autores}."
+
+    if not memoria.obtener_equipo():
+        return ("Listo, hablaré del equipo. Si me dices sus nombres los menciono "
+                "uno por uno: solo dime \"mis compañeros son\" y los nombres.")
+    return f"Entendido. A partir de ahora diré que mis creadores son {autores}."
+
+
+def recordar_equipo(nombres: list) -> str:
+    guardados = memoria.establecer_equipo(nombres)
+    if not guardados:
+        return "No capté los nombres. Dímelos otra vez, separados por comas."
+    memoria.establecer_credito(memoria.CREDITO_GRUPO)
+    return f"Anotado. Mis creadores son {memoria.autores()}."
+
+
 def le_pidieron_modo_publico(comando_norm: str) -> bool:
     return any(frase in comando_norm for frase in DISPARADORES_MODO_PUBLICO)
 
@@ -133,7 +174,8 @@ def proposito() -> str:
     pide con "preséntate", que para eso está.
     """
     nombre_asistente = memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE
-    dueno = memoria.obtener_nombre()
+    # Puede ser una persona o todo el equipo, según el crédito elegido.
+    dueno = memoria.autores()
 
     if memoria.modo_presentacion_activo():
         respuesta = f"Soy {nombre_asistente}, un proyecto escolar"
@@ -188,7 +230,7 @@ def presentarse() -> str:
     docena de frases alcanza para recuperar el hilo.
     """
     nombre_asistente = memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE
-    dueno = memoria.obtener_nombre()
+    dueno = memoria.autores()
 
     if memoria.modo_presentacion_activo():
         # Mismo contenido, pero dirigido a la sala y de usted en plural. El
@@ -221,6 +263,8 @@ def presentarse() -> str:
         "archivo siempre pido permiso: esa parte no la negocio. "
         "Eso es lo mío."
     )
-    if dueno:
-        presentacion += f" ¿Seguimos, {dueno}?"
+    # Esta despedida sí es para quien está manejando a Venok, no para el equipo.
+    quien_expone = memoria.obtener_nombre()
+    if quien_expone:
+        presentacion += f" ¿Seguimos, {quien_expone}?"
     return presentacion

@@ -50,6 +50,11 @@ para el historial de decisiones de diseño.
 - **Controlar su propia voz**: "cállate" o "para de hablar" corta la frase en
   seco a media palabra (no espera a terminarla); "habla más despacio" y "habla
   más rápido" cambian la velocidad, de 4.4 a 1.9 segundos para la misma frase.
+- **Crédito al equipo**: el proyecto puede ser de un grupo aunque lo exponga
+  una persona. Con "mis compañeros son Ana, Luis y Sofía" Venok los nombra a
+  todos cuando le preguntan quién lo hizo, en vez de a una sola persona.
+  Se guarda entre sesiones; se vuelve atrás con "dirígete solo a mí como tu
+  creador".
 - **Modo presentación**: con "modo presentación" deja de hablarle solo a su
   dueño y se dirige al público: trata de usted en plural, usa un tono
   profesional —con alguna pizca de humor— y deja de usar emojis, que la voz

@@ -176,6 +176,23 @@ _RELLENO_EN_NOMBRES = {
 }
 
 
+# Se busca sobre el comando ORIGINAL, no el normalizado: los nombres propios
+# llevan tildes y mayúsculas y hay que guardarlos tal cual se dijeron.
+_PATRON_EQUIPO = re.compile(
+    r"(?:mis?\s+compa(?:ñ|n)eros?\s+(?:son|somos|se\s+llaman)|"
+    r"el\s+(?:equipo|grupo)\s+(?:somos|es|son|lo\s+formamos)|"
+    r"trabaj(?:e|amos)\s+con)\s+(.+)$",
+    re.IGNORECASE,
+)
+
+
+def _separar_nombres(texto: str) -> list:
+    """'Ana, Luis y Sofía' -> ['Ana', 'Luis', 'Sofía']."""
+    texto = re.sub(r"\s+\by\b\s+", ", ", texto, flags=re.IGNORECASE)
+    texto = re.sub(r"\s+\be\b\s+", ", ", texto, flags=re.IGNORECASE)
+    return [parte.strip(" .,;") for parte in texto.split(",") if parte.strip(" .,;")]
+
+
 def _nombre_de_archivo(comando_norm: str) -> str:
     """Saca el nombre del archivo de frases como 'abre el archivo notas'."""
     resto = comando_norm.split("archivo", 1)[-1]
@@ -270,6 +287,20 @@ def _resolver(comando: str) -> str:
             return voz_modulo.cambiar_velocidad(-1)
         if any(p in comando_norm for p in ("mas rapido", "mas deprisa", "mas veloz")):
             return voz_modulo.cambiar_velocidad(1)
+
+    # --- A quién nombra como su creador ---
+    # El proyecto es de un grupo aunque lo exponga una persona: si Venok repite
+    # "proyecto escolar de Fulano" delante del público, parece que los demás
+    # solo fueron a hablar.
+    coincidencia = _PATRON_EQUIPO.search(comando)
+    if coincidencia:
+        return presentacion.recordar_equipo(_separar_nombres(coincidencia.group(1)))
+
+    if presentacion.le_pidieron_credito_grupo(comando_norm):
+        return presentacion.cambiar_credito(True)
+
+    if presentacion.le_pidieron_credito_individual(comando_norm):
+        return presentacion.cambiar_credito(False)
 
     # --- Modo presentación: hablarle al público en vez de solo a su dueño ---
     # Va antes que el número y que los tonos, porque cambia cómo se dicen

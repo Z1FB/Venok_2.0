@@ -67,6 +67,65 @@ def establecer_ciudad_favorita(ciudad: str) -> None:
     _guardar()
 
 
+# ------------------------------------------------------------------
+# A quién nombra Venok como su autor
+# ------------------------------------------------------------------
+# El proyecto es de un grupo aunque lo exponga una persona. Si Venok repite
+# "proyecto escolar de Fulano" delante del público, parece que los demás solo
+# fueron a hablar. Con el crédito en "grupo" nombra a todo el equipo.
+CREDITO_INDIVIDUAL = "individual"
+CREDITO_GRUPO = "grupo"
+
+
+def obtener_credito() -> str:
+    return _cargar().get("credito", CREDITO_INDIVIDUAL)
+
+
+def establecer_credito(modo: str) -> bool:
+    if modo not in (CREDITO_INDIVIDUAL, CREDITO_GRUPO):
+        return False
+    _cargar()["credito"] = modo
+    _guardar()
+    return True
+
+
+def obtener_equipo() -> list:
+    equipo = _cargar().get("equipo", [])
+    return list(equipo) if isinstance(equipo, list) else []
+
+
+def establecer_equipo(nombres) -> list:
+    """Guarda los nombres del equipo, sin repetidos y respetando el orden."""
+    limpios = []
+    for nombre in nombres or []:
+        nombre = " ".join(str(nombre).split()).strip(" .,;")
+        if nombre and nombre.lower() not in [n.lower() for n in limpios]:
+            limpios.append(nombre)
+    _cargar()["equipo"] = limpios
+    _guardar()
+    return limpios
+
+
+def autores() -> str:
+    """Cómo debe nombrar Venok a quien lo hizo, ya listo para decirlo."""
+    dueno = obtener_nombre()
+    if obtener_credito() != CREDITO_GRUPO:
+        return dueno or ""
+
+    equipo = obtener_equipo()
+    if not equipo:
+        # Se pidió crédito al grupo pero no se dijeron los nombres: nombrar
+        # solo al dueño sería justo lo contrario de lo que se pidió.
+        return f"{dueno} y su equipo" if dueno else "un grupo de estudiantes"
+
+    # El dueño va primero, es quien está exponiendo.
+    if dueno and dueno.lower() not in [n.lower() for n in equipo]:
+        equipo = [dueno] + equipo
+    if len(equipo) == 1:
+        return equipo[0]
+    return ", ".join(equipo[:-1]) + " y " + equipo[-1]
+
+
 def olvidar_todo() -> None:
     """Borra los datos DEL USUARIO: su nombre, su ciudad y la conversación
     guardada. El nombre que le pusiste a Venok y el tono elegido son

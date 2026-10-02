@@ -79,7 +79,7 @@ def quien_te_programo() -> str:
     que lo creó la empresa dueña del modelo de lenguaje. Venok es un proyecto
     escolar: quien lo programó es su dueño, y la IA es una pieza más que usa
     por dentro, como Wolfram Alpha o el motor de voz de Windows."""
-    autor = memoria.obtener_nombre()
+    autor = memoria.autores()
     quien = autor if autor else "la persona con la que hablas"
     return (
         f" A ti te programó {quien} como proyecto escolar, en Python. No te creó "
