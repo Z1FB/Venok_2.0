@@ -410,13 +410,31 @@ def _resolver(comando: str) -> str:
     if "lanza un dado" in comando_norm or "tira un dado" in comando_norm:
         return capacidades.lanzar_dado()
 
+    # --- Redactar un texto y abrirlo en el Bloc de notas ---
+    # Va de las primeras: el tema a redactar es texto libre y puede contener
+    # palabras que disparen otras reglas. Paso de verdad con "escribe un correo
+    # pidiendo mas TIEMPO para la tarea EN el bloc de notas": saltaba la regla
+    # del clima y contestaba "no encontre la ciudad el bloc de notas".
+    #
+    # Si la frase no dice donde escribir, no entra aqui y se respeta la regla
+    # de teclear de siempre, que es de accesibilidad.
+    tema_a_redactar = redaccion.le_pidieron_redactar(comando_norm)
+    if tema_a_redactar:
+        _avisar(f"Dame un momento, estoy redactando {tema_a_redactar}...")
+        return redaccion.redactar_y_abrir(
+            tema_a_redactar,
+            memoria.obtener_tono(),
+            memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE,
+        )
+
     # --- Información ---
     # "Tiempo" en español es el clima, pero también la duración: "cuánto tiempo
     # llevo programándote" contestaba con los grados que hacía en la ciudad.
     _tiempo_es_duracion = any(
         frase in comando_norm
         for frase in ("cuanto tiempo", "tiempo libre", "tiempo que", "a tiempo",
-                      "tiempo de", "al mismo tiempo", "hace tiempo", "tiempo record")
+                      "tiempo de", "al mismo tiempo", "hace tiempo", "tiempo record",
+                      "tiempo para", "mas tiempo", "tiempo extra", "perder tiempo")
     )
     if "clima" in comando_norm or ("tiempo" in comando_norm and not _tiempo_es_duracion):
         ciudad = _ciudad_del_comando(comando, comando_norm)
@@ -603,19 +621,6 @@ def _resolver(comando: str) -> str:
         return control.doble_clic()
     if "haz clic" in comando_norm or comando_norm.strip() == "clic":
         return control.clic("izquierdo")
-
-    # --- Redactar un texto y abrirlo en el Bloc de notas ---
-    # Va ANTES de la regla de teclear: "escribe una carta en el bloc de notas"
-    # no es dictado, es un encargo. Si no dice dónde escribirlo, se respeta la
-    # regla de siempre y se teclea tal cual.
-    tema_a_redactar = redaccion.le_pidieron_redactar(comando_norm)
-    if tema_a_redactar:
-        _avisar(f"Dame un momento, estoy redactando {tema_a_redactar}...")
-        return redaccion.redactar_y_abrir(
-            tema_a_redactar,
-            memoria.obtener_tono(),
-            memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE,
-        )
 
     if re.search(r"\bescribe\b", comando_norm):
         # Se busca "escribe" en el comando ORIGINAL (sin normalizar, sin

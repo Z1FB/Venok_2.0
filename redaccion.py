@@ -104,6 +104,20 @@ def _pedirle_el_texto_a_la_ia(tema: str, tono: str, nombre_asistente: str):
     )
 
 
+def _limpiar_documento(texto: str) -> str:
+    """Quita las marcas de Markdown que a veces se cuelan. En el Bloc de notas
+    no se interpretan: un título queda como "# La fotosíntesis" y las negritas
+    como asteriscos sueltos. Se respetan los saltos de línea, que en un
+    documento sí forman parte del resultado."""
+    lineas = []
+    for linea in texto.split("\n"):
+        linea = re.sub(r"^\s{0,3}#{1,6}\s*", "", linea)   # títulos
+        linea = re.sub(r"\*\*(.+?)\*\*", r"\1", linea)     # negritas
+        linea = re.sub(r"(?<!\*)\*([^*]+?)\*(?!\*)", r"\1", linea)  # cursivas
+        lineas.append(linea.rstrip())
+    return "\n".join(lineas).strip()
+
+
 def redactar_y_abrir(tema: str, tono: str = "amigable", nombre_asistente: str = "Venok") -> str:
     if not claude_api.hay_api_key():
         return ("Para redactar textos necesito la clave de inteligencia artificial, "
@@ -112,6 +126,7 @@ def redactar_y_abrir(tema: str, tono: str = "amigable", nombre_asistente: str = 
     texto = _pedirle_el_texto_a_la_ia(tema, tono, nombre_asistente)
     if not texto:
         return "No pude redactar eso ahora mismo. ¿Lo intentamos de nuevo?"
+    texto = _limpiar_documento(texto)
 
     ruta = _ruta_libre(_nombre_de_archivo(tema))
     try:
