@@ -296,20 +296,23 @@ def _resolver(comando: str) -> str:
     if coincidencia:
         return presentacion.recordar_equipo(_separar_nombres(coincidencia.group(1)))
 
-    if presentacion.le_pidieron_credito_grupo(comando_norm):
-        return presentacion.cambiar_credito(True)
-
+    # Apagar se comprueba ANTES que encender: pedir que algo se apague suele
+    # llevar dentro el nombre de lo que hay que apagar ("desactiva el modo
+    # presentación"), y mirando primero el encendido se encendía.
     if presentacion.le_pidieron_credito_individual(comando_norm):
         return presentacion.cambiar_credito(False)
+
+    if presentacion.le_pidieron_credito_grupo(comando_norm):
+        return presentacion.cambiar_credito(True)
 
     # --- Modo presentación: hablarle al público en vez de solo a su dueño ---
     # Va antes que el número y que los tonos, porque cambia cómo se dicen
     # todas las respuestas siguientes.
-    if presentacion.le_pidieron_modo_publico(comando_norm):
-        return presentacion.cambiar_modo(True)
-
     if presentacion.le_pidieron_modo_privado(comando_norm):
         return presentacion.cambiar_modo(False)
+
+    if presentacion.le_pidieron_modo_publico(comando_norm):
+        return presentacion.cambiar_modo(True)
 
     if presentacion.le_pidieron_el_numero(comando_norm):
         return presentacion.hacerse_el_desentendido()

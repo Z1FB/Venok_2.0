@@ -121,17 +121,39 @@ DISPARADORES_CREDITO_GRUPO = (
     "credito al grupo", "credito al equipo", "modo grupo",
 )
 DISPARADORES_CREDITO_INDIVIDUAL = (
-    "dirigete solo a mi", "solo a mi como tu creador", "modo individual",
-    "credito solo a mi", "nombrame solo a mi",
+    "dirigete solo a mi", "dirigete a mi", "solo a mi como tu creador",
+    "modo individual", "credito solo a mi", "nombrame solo a mi",
+    "nombrame a mi", "solo mi nombre",
+)
+
+# Pedir que algo se APAGUE contiene casi siempre el nombre de lo que hay que
+# apagar: "desactiva el modo presentación" lleva dentro "modo presentación".
+# Sin mirar estas palabras primero, pedir que se apagara lo encendía.
+_PALABRAS_DE_APAGADO = (
+    "sal del", "salir del", "salte del", "desactiva", "desactivar", "quita",
+    "quitar", "termina", "terminar", "apaga", "apagar", "fin del", "ya no",
+    "deja de", "no te dirijas", "no nombres", "no menciones", "sin el modo",
+    "cancela el modo", "detener el modo",
 )
 
 
+def _pide_apagar(comando_norm: str) -> bool:
+    return any(palabra in comando_norm for palabra in _PALABRAS_DE_APAGADO)
+
+
 def le_pidieron_credito_grupo(comando_norm: str) -> bool:
+    if _pide_apagar(comando_norm):
+        return False
     return any(frase in comando_norm for frase in DISPARADORES_CREDITO_GRUPO)
 
 
 def le_pidieron_credito_individual(comando_norm: str) -> bool:
-    return any(frase in comando_norm for frase in DISPARADORES_CREDITO_INDIVIDUAL)
+    if any(frase in comando_norm for frase in DISPARADORES_CREDITO_INDIVIDUAL):
+        return True
+    # "ya no nombres al grupo", "deja de mencionar al equipo"...
+    return _pide_apagar(comando_norm) and any(
+        p in comando_norm for p in ("grupo", "equipo", "companeros", "creadores")
+    )
 
 
 def cambiar_credito(al_grupo: bool) -> str:
@@ -157,11 +179,19 @@ def recordar_equipo(nombres: list) -> str:
 
 
 def le_pidieron_modo_publico(comando_norm: str) -> bool:
+    if _pide_apagar(comando_norm):
+        return False
     return any(frase in comando_norm for frase in DISPARADORES_MODO_PUBLICO)
 
 
 def le_pidieron_modo_privado(comando_norm: str) -> bool:
-    return any(frase in comando_norm for frase in DISPARADORES_MODO_PRIVADO)
+    if any(frase in comando_norm for frase in DISPARADORES_MODO_PRIVADO):
+        return True
+    # "desactiva el modo presentación", "ya no te dirijas al público"...
+    return _pide_apagar(comando_norm) and any(
+        p in comando_norm
+        for p in ("modo presentacion", "modo exposicion", "modo publico", "al publico")
+    )
 
 
 def cambiar_modo(al_publico: bool) -> str:
