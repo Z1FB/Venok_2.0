@@ -29,6 +29,7 @@ import correo
 import agente
 import youtube
 import presentacion
+import redaccion
 
 reconocedor = sr.Recognizer()
 
@@ -226,11 +227,23 @@ def _resolver(comando: str) -> str:
             return presentacion.presentarse()
         # No insistió: se cancela el número y el comando sigue su camino normal.
 
+    # --- Modo presentación: hablarle al público en vez de solo a su dueño ---
+    # Va antes que el número y que los tonos, porque cambia cómo se dicen
+    # todas las respuestas siguientes.
+    if presentacion.le_pidieron_modo_publico(comando_norm):
+        return presentacion.cambiar_modo(True)
+
+    if presentacion.le_pidieron_modo_privado(comando_norm):
+        return presentacion.cambiar_modo(False)
+
     if presentacion.le_pidieron_el_numero(comando_norm):
         return presentacion.hacerse_el_desentendido()
 
     if presentacion.le_pidieron_presentarse(comando_norm):
         return presentacion.presentarse()
+
+    if presentacion.le_preguntaron_el_proposito(comando_norm):
+        return presentacion.proposito()
 
     # --- Memoria: datos del usuario ---
     if comando_norm.startswith("me llamo ") or comando_norm.startswith("mi nombre es "):
@@ -335,7 +348,7 @@ def _resolver(comando: str) -> str:
             "'me llamo Ana' o 'mi ciudad es Madrid'. Además reviso el uso de procesador, "
             "memoria, disco y batería, busco, abro o elimino archivos en tus carpetas, "
             "y puedo poner recordatorios, como 'recuérdame llamar a mamá mañana a las 5'. "
-            "También puedes cambiarme el nombre ('llámate Jarvis') o mi tono "
+            "También puedes cambiarme el nombre ('llámate Aura') o mi tono "
             "('modo formal', 'modo gracioso', 'modo amigable'), y decirme que "
             "'inicie con Windows' para abrirme solo al encender tu computadora. "
             "Puedo darte las especificaciones de tu equipo y sus programas instalados, "
@@ -529,6 +542,19 @@ def _resolver(comando: str) -> str:
         return control.doble_clic()
     if "haz clic" in comando_norm or comando_norm.strip() == "clic":
         return control.clic("izquierdo")
+
+    # --- Redactar un texto y abrirlo en el Bloc de notas ---
+    # Va ANTES de la regla de teclear: "escribe una carta en el bloc de notas"
+    # no es dictado, es un encargo. Si no dice dónde escribirlo, se respeta la
+    # regla de siempre y se teclea tal cual.
+    tema_a_redactar = redaccion.le_pidieron_redactar(comando_norm)
+    if tema_a_redactar:
+        _avisar(f"Dame un momento, estoy redactando {tema_a_redactar}...")
+        return redaccion.redactar_y_abrir(
+            tema_a_redactar,
+            memoria.obtener_tono(),
+            memoria.obtener_nombre_asistente() or NOMBRE_ASISTENTE,
+        )
 
     if re.search(r"\bescribe\b", comando_norm):
         # Se busca "escribe" en el comando ORIGINAL (sin normalizar, sin

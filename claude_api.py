@@ -77,14 +77,30 @@ def lo_que_sabe_del_usuario() -> str:
 def instruccion_de_sistema(tono: str = "amigable", nombre_asistente: str = "Venok") -> str:
     """La personalidad de Venok, para mandarla como instrucción de sistema en
     vez de repetirla dentro de cada pregunta."""
-    estilo = _DESCRIPCION_TONO.get(tono, _DESCRIPCION_TONO["amigable"])
-    return (
+    base = (
         f"Eres {nombre_asistente}, el asistente de escritorio de esta persona. "
-        f"Responde en español, en un tono {estilo}, de forma breve (2 a 4 "
-        f"oraciones) porque tu respuesta se leerá en voz alta. Ya se conocen: "
-        f"no vuelvas a presentarte ni a saludar en cada respuesta."
-        + lo_que_sabe_del_usuario()
+        f"Responde en español, de forma breve (2 a 4 oraciones) porque tu "
+        f"respuesta se leerá en voz alta. Ya se conocen: no vuelvas a "
+        f"presentarte ni a saludar en cada respuesta."
     )
+
+    if memoria.modo_presentacion_activo():
+        # En una exposición no hay una sola persona escuchando, sino una sala.
+        # El tono elegido se deja de lado aquí a propósito: delante de un
+        # público (profesores, padres) conviene uno solo, sobrio y con un
+        # toque de humor, en vez de depender de cómo quedó configurado.
+        return base + (
+            " Ahora mismo hay una exposición en marcha y te diriges a un "
+            "público, no solo a tu dueño: habla de usted en plural ('ustedes') "
+            "y evita tutear. Mantén un tono profesional y claro, con alguna "
+            "pizca de humor amable, sin chistes largos ni expresiones "
+            "demasiado coloquiales. No uses emojis: tu respuesta se lee en voz "
+            "alta y la voz de Windows se traba con ellos."
+            + lo_que_sabe_del_usuario()
+        )
+
+    estilo = _DESCRIPCION_TONO.get(tono, _DESCRIPCION_TONO["amigable"])
+    return base + f" Usa un tono {estilo}." + lo_que_sabe_del_usuario()
 
 
 def _historial_vivo() -> list:
@@ -164,7 +180,7 @@ def preguntar_con_herramientas(pregunta: str, herramientas: list, sistema: str =
 
 
 def preguntar(contenido, sistema: str = None, max_tokens: int = 300,
-              timeout: int = 20, historial: list = None):
+              timeout: int = 20, historial: list = None, para_voz: bool = True):
     """Manda un mensaje a Claude y regresa su respuesta como texto.
 
     `contenido` puede ser:
@@ -173,6 +189,11 @@ def preguntar(contenido, sistema: str = None, max_tokens: int = 300,
         para mensajes multimodales.
 
     `historial` son turnos previos para dar contexto de la conversación.
+
+    `para_voz` deja la respuesta en un solo párrafo, que es lo que conviene
+    cuando se va a leer en voz alta. Hay que ponerlo en False cuando el texto
+    es un documento que se va a guardar (una carta, por ejemplo): ahí los
+    saltos de línea son parte del resultado.
 
     Regresa None si no hay API key o si la llamada falla, para que quien
     llame decida qué mensaje mostrarle al usuario.
@@ -200,7 +221,8 @@ def preguntar(contenido, sistema: str = None, max_tokens: int = 300,
             timeout=timeout,
         )
         resp.raise_for_status()
-        return _limpiar_para_voz(resp.json()["content"][0]["text"])
+        texto = resp.json()["content"][0]["text"]
+        return _limpiar_para_voz(texto) if para_voz else texto.strip()
     except (requests.exceptions.RequestException, KeyError, IndexError) as error:
         print(f"[Venok] Error consultando a Claude: {error}")
         return None

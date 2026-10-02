@@ -47,6 +47,14 @@ para el historial de decisiones de diseño.
 - **Correo** (opcional): revisar la bandeja de entrada y enviar mensajes.
 - **Accesibilidad**: control de mouse y teclado por voz (mover, clic,
   escribir, teclas, scroll).
+- **Modo presentación**: con "modo presentación" deja de hablarle solo a su
+  dueño y se dirige al público: trata de usted en plural, usa un tono
+  profesional —con alguna pizca de humor— y deja de usar emojis, que la voz
+  de Windows lee mal. Se sale con "modo normal".
+- **Redacta y abre documentos**: "escribe una carta de renuncia en el bloc de
+  notas", "redacta un correo para mi jefe". Escribe el texto con IA, lo guarda
+  en el escritorio y lo abre en el Bloc de notas. (No lo teclea a propósito:
+  pyautogui no puede teclear tildes ni eñes, y el texto saldría mutilado.)
 - **Se presenta solo**: "Venok, haz lo tuyo" — se hace el desentendido, y
   cuando le insistes cuenta en voz alta quién es y todo lo que sabe hacer,
   durante alrededor de un minuto. Pensado para salir del paso en una
@@ -152,7 +160,10 @@ Sube el volumen  ->  otra vez
 Abre el navegador y busca recetas de pizza
 Venok, haz lo tuyo
 Mueve el mouse a la derecha / Haz clic / Escribe hola / Presiona enter
-Llámate Jarvis
+Modo presentación  ->  Venok, preséntate al público  ->  Modo normal
+Escribe una carta de renuncia en el bloc de notas
+Para qué fuiste hecho
+Llámate Aura
 Modo gracioso
 Ayuda
 ```
@@ -272,7 +283,8 @@ venok/
 ├── acciones.py                # Abrir sitios, apps y juegos + emparejado difuso
 ├── capacidades.py             # Clima, noticias, hora, definiciones, traductor, Wolfram
 ├── youtube.py                 # Buscar y reproducir videos (YouTube Data API v3)
-├── presentacion.py            # "Haz lo tuyo": Venok se presenta solo
+├── presentacion.py            # "Haz lo tuyo", el propósito y el modo presentación
+├── redaccion.py               # Redactar textos con IA y abrirlos en el Bloc de notas
 ├── control_mouse_teclado.py  # Control de mouse/teclado por voz
 ├── personalidad.py           # Frases y tonos (formal/amigable/gracioso)
 ├── memoria.py                 # Memoria persistente y de sesión

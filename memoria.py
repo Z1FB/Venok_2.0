@@ -221,3 +221,18 @@ def recordar_contexto(clave: str, valor) -> None:
 
 def obtener_contexto(clave: str):
     return _contexto_sesion.get(clave)
+
+
+# ------------------------------------------------------------------
+# Modo presentación
+# ------------------------------------------------------------------
+# Cuando está activo, Venok deja de hablarle solo a su dueño y se dirige al
+# público. Vive en la memoria de sesión a propósito: si quedara guardado,
+# Venok seguiría hablándole a un auditorio que ya no está la próxima vez que
+# se abriera.
+def activar_modo_presentacion(activo: bool = True) -> None:
+    _contexto_sesion["modo_presentacion"] = bool(activo)
+
+
+def modo_presentacion_activo() -> bool:
+    return bool(_contexto_sesion.get("modo_presentacion"))

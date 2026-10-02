@@ -109,9 +109,23 @@ def momento_del_dia() -> str:
     return "Buenas noches"
 
 
+SALUDOS_AL_PUBLICO = (
+    "Un gusto saludarles. Quedo a sus órdenes.",
+    "Es un placer acompañarles. Estoy a su disposición.",
+    "Gracias por su atención. Cuando gusten, empezamos.",
+)
+
+
 def saludo(nombre: str = None) -> str:
-    base = variar(_frases("saludos"), "saludos")
     apertura = momento_del_dia()
+
+    # En modo presentación el saludo es para la sala, así que no se nombra al
+    # dueño ni se usa el tono configurado: delante de un público conviene uno
+    # solo, sobrio.
+    if memoria.modo_presentacion_activo():
+        return f"{apertura} a todos. {variar(SALUDOS_AL_PUBLICO, 'saludos_publico')}"
+
+    base = variar(_frases("saludos"), "saludos")
     return f"{apertura}, {nombre}. {base}" if nombre else f"{apertura}. {base}"
 
 
