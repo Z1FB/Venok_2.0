@@ -79,6 +79,12 @@ DISPARADORES_DE_PROPOSITO = (
     "para que te crearon", "por que te crearon", "por que te hicieron",
     "cual es tu proposito", "que proposito tienes", "para que existes",
     "de que se trata este proyecto", "que es este proyecto",
+    # "¿Quién te hizo?" la contestaba la IA, y respondía que lo había creado
+    # la empresa dueña del modelo. En una exposición escolar eso es lo peor
+    # que puede decir: se responde aquí, en local, nombrando a quien lo programó.
+    "quien te hizo", "quien te programo", "quien te creo", "quien te desarrollo",
+    "quien te construyo", "quien es tu creador", "quien te invento",
+    "que empresa te hizo", "de quien eres",
 )
 
 _esperando_insistencia = False

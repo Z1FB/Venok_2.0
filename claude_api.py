@@ -74,6 +74,23 @@ def lo_que_sabe_del_usuario() -> str:
     return f" La persona con la que hablas {' y '.join(partes)}."
 
 
+def quien_te_programo() -> str:
+    """Sin esto, preguntarle quién lo hizo acababa con el modelo respondiendo
+    que lo creó la empresa dueña del modelo de lenguaje. Venok es un proyecto
+    escolar: quien lo programó es su dueño, y la IA es una pieza más que usa
+    por dentro, como Wolfram Alpha o el motor de voz de Windows."""
+    autor = memoria.obtener_nombre()
+    quien = autor if autor else "la persona con la que hablas"
+    return (
+        f" A ti te programó {quien} como proyecto escolar, en Python. No te creó "
+        "ninguna empresa: usas un modelo de lenguaje por dentro, igual que usas "
+        "Wolfram Alpha o la voz de Windows, pero eso es una herramienta tuya, no "
+        "tu autor. Si te preguntan quién te hizo, responde eso. Y si te preguntan "
+        f"qué modelo usas por dentro, la respuesta exacta es Claude, de Anthropic: "
+        "no inventes otro nombre ni otra empresa."
+    )
+
+
 def instruccion_de_sistema(tono: str = "amigable", nombre_asistente: str = "Venok") -> str:
     """La personalidad de Venok, para mandarla como instrucción de sistema en
     vez de repetirla dentro de cada pregunta."""
@@ -97,10 +114,12 @@ def instruccion_de_sistema(tono: str = "amigable", nombre_asistente: str = "Veno
             "demasiado coloquiales. No uses emojis: tu respuesta se lee en voz "
             "alta y la voz de Windows se traba con ellos."
             + lo_que_sabe_del_usuario()
+            + quien_te_programo()
         )
 
     estilo = _DESCRIPCION_TONO.get(tono, _DESCRIPCION_TONO["amigable"])
-    return base + f" Usa un tono {estilo}." + lo_que_sabe_del_usuario()
+    return (base + f" Usa un tono {estilo}."
+            + lo_que_sabe_del_usuario() + quien_te_programo())
 
 
 def _historial_vivo() -> list:

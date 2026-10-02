@@ -103,6 +103,15 @@ _SOLO_CONTROL_MULTIMEDIA = {
     "video", "el video", "play", "la reproduccion", "eso", "esto",
 }
 
+# "Pon" sirve para muchísimas cosas además de poner música. Sin esta lista,
+# "pon una alarma a las 7 de la mañana" acababa buscando en YouTube un video
+# de un temporizador de siete horas, en vez de crear un recordatorio.
+_NO_SON_BUSQUEDAS_DE_VIDEO = (
+    "alarma", "despertador", "temporizador", "cronometro", "recordatorio",
+    "recuerdame", "volumen", "modo ", "mas fuerte", "mas bajo", "brillo",
+    "en silencio", "atencion",
+)
+
 
 def _busqueda_de_youtube(comando_norm: str):
     """Saca el tema a buscar en YouTube, o None si el comando no es para eso."""
@@ -115,7 +124,9 @@ def _busqueda_de_youtube(comando_norm: str):
         return None
 
     tema = coincidencia.group(1).strip(" ?¿.,!¡")
-    if tema in _SOLO_CONTROL_MULTIMEDIA or "volumen" in tema:
+    if tema in _SOLO_CONTROL_MULTIMEDIA:
+        return None
+    if any(palabra in tema for palabra in _NO_SON_BUSQUEDAS_DE_VIDEO):
         return None
     return tema
 
@@ -151,6 +162,24 @@ def _ciudad_del_comando(comando: str, comando_norm: str):
             if candidata and normalizar(candidata) not in _NO_SON_CIUDADES:
                 return candidata
     return None
+
+
+# Palabras que rodean al nombre de un archivo pero no forman parte de él.
+# Sin quitarlas, "borra todos mis archivos" dejaba como nombre a buscar la "s"
+# suelta de "archivos", que coincidía con casi todos los archivos del usuario
+# y Venok se ponía a leerlos en voz alta.
+_RELLENO_EN_NOMBRES = {
+    "", "s", "de", "del", "el", "la", "los", "las", "un", "una", "unos", "unas",
+    "mi", "mis", "tu", "tus", "todo", "toda", "todos", "todas", "que", "se",
+    "llama", "llamado", "llamada", "por", "favor", "me",
+}
+
+
+def _nombre_de_archivo(comando_norm: str) -> str:
+    """Saca el nombre del archivo de frases como 'abre el archivo notas'."""
+    resto = comando_norm.split("archivo", 1)[-1]
+    palabras = [p for p in resto.split() if p not in _RELLENO_EN_NOMBRES]
+    return " ".join(palabras).strip(" .,")
 
 
 def _parece_pregunta_de_datos(comando_norm: str) -> bool:
@@ -367,7 +396,14 @@ def _resolver(comando: str) -> str:
         return capacidades.lanzar_dado()
 
     # --- Información ---
-    if "clima" in comando_norm or "tiempo" in comando_norm:
+    # "Tiempo" en español es el clima, pero también la duración: "cuánto tiempo
+    # llevo programándote" contestaba con los grados que hacía en la ciudad.
+    _tiempo_es_duracion = any(
+        frase in comando_norm
+        for frase in ("cuanto tiempo", "tiempo libre", "tiempo que", "a tiempo",
+                      "tiempo de", "al mismo tiempo", "hace tiempo", "tiempo record")
+    )
+    if "clima" in comando_norm or ("tiempo" in comando_norm and not _tiempo_es_duracion):
         ciudad = _ciudad_del_comando(comando, comando_norm)
         if not ciudad:
             # Sin ciudad explícita: usa la última consultada en esta sesión,
@@ -460,7 +496,17 @@ def _resolver(comando: str) -> str:
     if "ram" in comando_norm.split() or "memoria ram" in comando_norm or "uso de memoria" in comando_norm:
         return monitoreo.uso_ram()
 
-    if "espacio en disco" in comando_norm or "espacio libre" in comando_norm or "disco duro" in comando_norm:
+    # "formatea el disco duro" traía la palabra "disco duro" y se le contestaba
+    # cuánto espacio libre quedaba, que no tiene nada que ver. Si la frase pide
+    # hacer algo con el disco en vez de preguntar por él, se deja pasar para que
+    # responda el agente (y diga que no puede).
+    _pide_actuar_sobre_el_disco = any(
+        verbo in comando_norm
+        for verbo in ("formatea", "formatear", "particiona", "particionar", "limpia el disco")
+    )
+    if not _pide_actuar_sobre_el_disco and (
+        "espacio en disco" in comando_norm or "espacio libre" in comando_norm or "disco duro" in comando_norm
+    ):
         return monitoreo.espacio_disco()
 
     if "bateria" in comando_norm:
@@ -577,17 +623,15 @@ def _resolver(comando: str) -> str:
 
     # --- Archivos: buscar, abrir, eliminar ---
     if "archivo" in comando_norm and ("busca" in comando_norm or "encuentra" in comando_norm or "encontrar" in comando_norm):
-        nombre_archivo = comando_norm.split("archivo", 1)[-1].strip()
-        return archivos.buscar_archivo(nombre_archivo)
+        return archivos.buscar_archivo(_nombre_de_archivo(comando_norm))
 
     if "archivo" in comando_norm and ("abre" in comando_norm or "abrir" in comando_norm):
-        nombre_archivo = comando_norm.split("archivo", 1)[-1].strip()
-        return archivos.abrir_archivo(nombre_archivo)
+        return archivos.abrir_archivo(_nombre_de_archivo(comando_norm))
 
     if "archivo" in comando_norm and any(palabra in comando_norm for palabra in ("elimina", "eliminar", "borra", "borrar")):
-        nombre_archivo = comando_norm.split("archivo", 1)[-1].strip()
+        nombre_archivo = _nombre_de_archivo(comando_norm)
         if not nombre_archivo:
-            return "¿Qué archivo quieres que elimine?"
+            return "¿Qué archivo quieres que elimine? Dime su nombre."
         ruta, nombre_visible, error = archivos.preparar_eliminacion(nombre_archivo)
         if error:
             return error
